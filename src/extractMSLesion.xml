@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>PROJECT</category>
+  <title>extractMSLesion</title>
+  <version>1.0</version>
+  <contributor>Juan Carlos Prieto</contributor>
+  <parameters>        
+    <label>Input parameters</label>
+    <description>Input parameters</description>
+
+    <file multiple="true">
+      <name>vectorImageFilename</name>      
+      <longflag>i</longflag>
+    </file>
+
+    <file>
+      <name>labelImageFilename</name>      
+      <longflag>l</longflag>
+    </file>
+    
+  </parameters>
+
+  <parameters>
+    <label>Ouput parameters</label>
+    <description>Output parameters</description>
+
+    <file>
+      <name>outputImageDirectory</name>      
+      <longflag>o</longflag>
+    </file>
+
+  </parameters>
+</executable>

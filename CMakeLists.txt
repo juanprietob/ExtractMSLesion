@@ -37,8 +37,8 @@ endif()
 set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
   "Installation directory for CMake files")
   
-configure_file(CMake/FADTTSConfig.cmake.in
-  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FADTTSConfig.cmake" @ONLY)
+configure_file(CMake/ExtractMSLesion.cmake.in
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ExtractMSLesion.cmake" @ONLY)
 install(FILES
-  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FADTTSConfig.cmake"  
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ExtractMSLesion.cmake"  
   DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)

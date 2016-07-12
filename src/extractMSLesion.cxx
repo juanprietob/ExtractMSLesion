@@ -18,9 +18,9 @@ static const int Dimension = 3;
 
 typedef itk::Image<PixelType, Dimension> InputImageType;
 typedef itk::ImageFileReader<InputImageType> InputImageFileReaderType;
-typedef itk::ImageRegionIterator<InputImageType> InputIteratorType;
+typedef itk::NeighborhoodIterator<InputImageType> InputIteratorType;
 
-typedef unsigned char VectorImagePixelType;
+typedef unsigned short VectorImagePixelType;
 typedef itk::VectorImage<VectorImagePixelType, Dimension> VectorImageType;  
 typedef itk::ComposeImageFilter< InputImageType, VectorImageType> ComposeImageFilterType;
 typedef itk::NeighborhoodIterator<VectorImageType> VectorImageIteratorType;
@@ -39,9 +39,9 @@ void writeImage(VectorImageIteratorType* vectorit, VectorImageRadiusType radius,
 	typename OutputImageType::Pointer outputimage = OutputImageType::New();
 	typename OutputImageType::RegionType region;
 	typename OutputImageType::SizeType size;
-	size[0] = radius[0];
-	size[1] = radius[1];
-	size[2] = radius[2];
+	size[0] = radius[0]*2 + 1;
+	size[1] = radius[1]*2 + 1;
+	size[2] = radius[2]*2 + 1;
 
 	region.SetSize(size);
 
@@ -70,23 +70,43 @@ void writeImage(VectorImageIteratorType* vectorit, VectorImageRadiusType radius,
 	}
   	
 
+	cout<<"Writing file: "<<outfilename<<endl;
 	typename OutputImageFileWriterType::Pointer writer = OutputImageFileWriterType::New();
   	writer->SetFileName(outfilename);
   	writer->SetInput(outputimage);
   	writer->Update();
 }
 
+bool containsLabel(InputIteratorType* init, int labelValueContains, double labelValueContainsPercentage){
+	if(labelValueContains == -1){
+		return true;
+	}
+
+	int count = 0;
+	int size = init->Size();
+
+	for(int i = 0; i < size; i++){
+		if(init->GetPixel(i) == labelValueContains){
+			count++;	
+		}
+	}
+	double ratio = ((double)count)/((double)size);
+	return  ratio >= labelValueContainsPercentage;
+}
+
 int main (int argc, char * argv[]){
 
 
 	PARSE_ARGS;
-
+	
 	if(vectorImageFilename.size() == 0 || labelImageFilename.compare("") == 0){
 		cout<<"Type "<<argv[0]<<" --help to find out how to use this program."<<endl;
 		return 1;
 	}
-	
 
+	if(outputImageDirectory.compare("") != 0){
+		outputImageDirectory.append("/");
+	}
 
 	ComposeImageFilterType::Pointer composeImageFilter = ComposeImageFilterType::New();
 
@@ -110,11 +130,11 @@ int main (int argc, char * argv[]){
 	VectorImageType::Pointer vectorimage = composeImageFilter->GetOutput();
 
 	VectorImageIteratorType::RadiusType radius;	
-	radius[0] = 3;
-	radius[1] = 40;
-	radius[2] = 40;
+	radius[0] = neighborhood[0];
+	radius[1] = neighborhood[1];
+	radius[2] = neighborhood[2];
 
-	InputIteratorType init(labelimage, labelimage->GetLargestPossibleRegion());
+	InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
 	init.GoToBegin();
 	
 
@@ -122,10 +142,15 @@ int main (int argc, char * argv[]){
 
 
 	VectorImageIteratorType vectorit(radius, vectorimage, vectorimage->GetLargestPossibleRegion());
+
+	cout<<"Searching for label: "<<labelValue<<endl;
+	if(labelValueContains != -1){
+		cout<<"The region contains label: "<<labelValueContains<<", ratio: "<<labelValueContainsPercentage<<endl;
+	}
 	
 	vectorit.GoToBegin();
 	while(!init.IsAtEnd() && !vectorit.IsAtEnd()){
-		if(init.Get() == 6){
+		if(init.GetCenterPixel() == labelValue && containsLabel(&init, labelValueContains, labelValueContainsPercentage)){
 			uuid_t id;
 			uuid_generate(id);
 		  	uuid_unparse(id, uuid);
@@ -133,15 +158,15 @@ int main (int argc, char * argv[]){
 		  	string outfilename = outputImageDirectory;
 		  	outfilename.append(string(uuid)).append(".nrrd");
 
-		  	writeImage<3>(&vectorit, radius, outfilename);
+		  	writeImage<2>(&vectorit, radius, outfilename);
 
 			// VectorImageType::Pointer outputimage = VectorImageType::New();
 			// VectorImageType::RegionType region;
 			// VectorImageType::SizeType size;
 			
-			// size[0] = radius[0];
-			// size[1] = radius[1];
-			// size[2] = radius[2];
+			// size[0] = radius[0]*2 + 1;
+			// size[1] = radius[1]*2 + 1;
+			// size[2] = radius[2]*2 + 1;
 
 			// region.SetSize(size);			
 			
@@ -159,18 +184,17 @@ int main (int argc, char * argv[]){
 			// 	++outit;
 			// 	i++;
 			// }
-		  	
 
 			// VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
-		 //  	writer->SetFileName(outfilename);
-		 //  	writer->SetInput(outputimage);
-		 //  	writer->Update();
+			// writer->SetFileName(outfilename);
+			// writer->SetInput(outputimage);
+			// writer->Update();
 		}
 		++init;
 		++vectorit;
 	}
 
-	delete uuid;
+	delete[] uuid;
 
 
 	return 0;

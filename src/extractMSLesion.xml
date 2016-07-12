@@ -10,13 +10,45 @@
 
     <file multiple="true">
       <name>vectorImageFilename</name>      
-      <longflag>i</longflag>
+      <longflag>img</longflag>
     </file>
 
     <file>
       <name>labelImageFilename</name>      
-      <longflag>l</longflag>
+      <longflag>labelImg</longflag>
     </file>
+
+    <integer>
+      <name>labelValue</name>
+      <longflag>labelValue</longflag>
+      <default>6</default>
+    </integer>
+
+    <integer>
+      <name>labelValueContains</name>
+      <longflag>labelValueContains</longflag>
+      <default>-1</default>
+    </integer>
+
+    <double>
+      <name>labelValueContainsPercentage</name>
+      <longflag>labelValueContainsPercentage</longflag>
+      <description>Amount of labelValueContains in the region</description>
+      <default>0.1</default>
+      <constraints>
+        <minimum>0</minimum>
+        <maximum>1</maximum>
+        <step>.01</step>
+      </constraints>
+    </double>
+
+    <integer-vector>
+      <name>neighborhood</name>
+      <longflag>--neighborhood</longflag>
+      <description>The size of the neighborhood in each dimension</description>
+      <label>Neighborhood Size</label>
+      <default>9,9,1</default>
+    </integer-vector>
     
   </parameters>
 
@@ -26,7 +58,7 @@
 
     <file>
       <name>outputImageDirectory</name>      
-      <longflag>o</longflag>
+      <longflag>outDir</longflag>
     </file>
 
   </parameters>

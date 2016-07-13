@@ -1,0 +1,19 @@
+{
+  "name": "extract-ms-lesion-clusterpost",
+  "version": "1.0.0",
+  "description": "Submit a job to clusterpost",
+  "main": "index.js",
+  "dependencies": {
+    "clusterpost-lib": "^1.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Submit",
+    "extractMSLesion"
+  ],
+  "author": "juanprietob@gmail.com",
+  "license": "Apache-2.0"
+}

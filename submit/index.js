@@ -1,5 +1,6 @@
 var clusterpost = require("clusterpost-lib");
 var path = require('path');
+var argv = require('minimist')(process.argv.slice(2));
 
 
 const getConfigFile = function (env, base_directory) {
@@ -13,8 +14,23 @@ const getConfigFile = function (env, base_directory) {
   }
 };
 
+
+
+var inputfiles = [];
+
+inputfiles.push(argv["img1"]);
+inputfiles.push(argv["img2"]);
+inputfiles.push(argv["labelImg"]);
+
+var status = argv["status"];
+
+var kill = argv["kill"];
+
+var jobdelete = argv["delete"];
+
+
 var job = {
-    "executable": "cksum",
+    "executable": "extractMSLesion",
     "parameters": [
         {
             "flag": "--img",
@@ -29,7 +45,7 @@ var job = {
         	"name": "6"
         },
         {
-            "flag": "--l",
+            "flag": "--labelImg",
             "name": "pvec.nii.gz"
         },
         {
@@ -86,7 +102,7 @@ clusterpost.userLogin(conf.user)
 })
 .then(function(res){
 	job.executionserver = res[0].name;
-	return clusterpost.createAndSubmitJob(job, files)
+	return clusterpost.createAndSubmitJob(job, inputfiles)
 })
 .then(function(jobid){
 	console.log(jobid);

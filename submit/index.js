@@ -14,13 +14,19 @@ const getConfigFile = function (env, base_directory) {
   }
 };
 
+if(!argv["dir"]){
+    console.error("Help: ");
+    console.error("--dir  Input directory must contain files PD.nii.gz, T2.nii.gz and pvec.nii.gz");
+    process.exit(1);
+}
 
+var inputdir = argv["dir"];
 
 var inputfiles = [];
 
-inputfiles.push(argv["img1"]);
-inputfiles.push(argv["img2"]);
-inputfiles.push(argv["labelImg"]);
+inputfiles.push(path.join(inputdir, "PD.nii.gz"));
+inputfiles.push(path.join(inputdir, "T2.nii.gz"));
+inputfiles.push(path.join(inputdir, "pvec.nii.gz"));
 
 var status = argv["status"];
 
@@ -101,9 +107,10 @@ clusterpost.userLogin(conf.user)
 	return clusterpost.getExecutionServers();
 })
 .then(function(res){
-	job.executionserver = res[0].name;
+	job.executionserver = res[2].name;
 	return clusterpost.createAndSubmitJob(job, inputfiles)
 })
 .then(function(jobid){
 	console.log(jobid);
 })
+.catch(console.error)

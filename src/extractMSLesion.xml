@@ -11,29 +11,33 @@
     <file multiple="true">
       <name>vectorImageFilename</name>      
       <longflag>img</longflag>
+      <description>Input images with 1 scalar value, all the input images should be in the same space (registered). This filter requires at least one image</description>
     </file>
 
     <file>
       <name>labelImageFilename</name>      
       <longflag>labelImg</longflag>
+      <description>Label image filename, this paramtere is required</description>
     </file>
 
     <integer>
       <name>labelValue</name>
       <longflag>labelValue</longflag>
       <default>6</default>
+      <description>Input label value to extract</description>
     </integer>
 
     <integer>
       <name>labelValueContains</name>
       <longflag>labelValueContains</longflag>
       <default>-1</default>
+      <description>Input label value, the region or label set in labelValue must be in proximity to this label</description>
     </integer>
 
     <double>
       <name>labelValueContainsPercentage</name>
       <longflag>labelValueContainsPercentage</longflag>
-      <description>Amount of labelValueContains in the region</description>
+      <description>Amount or ration of labelValueContains in the region</description>
       <default>0.1</default>
       <constraints>
         <minimum>0</minimum>

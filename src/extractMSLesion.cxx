@@ -61,7 +61,7 @@ void writeImage(VectorImageIteratorType* vectorit, VectorImageRadiusType radius,
 		VectorImageType::PixelType pix = vectorit->GetPixel(i);		
 		OutputPixelType outpix;
 		outpix.Fill(0);
-		for(int j = 0; j < 2; j++){
+		for(int j = 0; j < VectorPixelDimension; j++){
 			outpix[j] = pix[j];			
 		}
 		outit.Set(outpix);
@@ -108,6 +108,8 @@ int main (int argc, char * argv[]){
 		outputImageDirectory.append("/");
 	}
 
+	
+
 	ComposeImageFilterType::Pointer composeImageFilter = ComposeImageFilterType::New();
 
 	for(int i = 0; i < vectorImageFilename.size(); i++){
@@ -134,6 +136,21 @@ int main (int argc, char * argv[]){
 	radius[1] = neighborhood[1];
 	radius[2] = neighborhood[2];
 
+
+
+	VectorImageType::Pointer outputimage = VectorImageType::New();
+
+	VectorImageType::SizeType size;
+	size[0] = radius[0]*2 + 1;
+	size[1] = radius[1]*2 + 1;
+	size[2] = radius[2]*2 + 1;
+	VectorImageType::RegionType region;
+	region.SetSize(size);
+	
+	outputimage->SetRegions(region);
+	outputimage->SetVectorLength(vectorImageFilename.size());
+	outputimage->Allocate();
+
 	InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
 	init.GoToBegin();
 	
@@ -158,37 +175,29 @@ int main (int argc, char * argv[]){
 		  	string outfilename = outputImageDirectory;
 		  	outfilename.append(string(uuid)).append(".nrrd");
 
-		  	writeImage<2>(&vectorit, radius, outfilename);
+		  	// if(vectorimage->GetVectorLength() == 2){
+		  	// 	writeImage<2>(&vectorit, radius, outfilename);
+		  	// }else if(vectorimage->GetVectorLength() == 3){
+		  	// 	writeImage<3>(&vectorit, radius, outfilename);
+		  	// }else{
+		  	// 	throw "Modify the source code here and recompile to use with the appropriate number of components.";
+		  	// }
 
-			// VectorImageType::Pointer outputimage = VectorImageType::New();
-			// VectorImageType::RegionType region;
-			// VectorImageType::SizeType size;
-			
-			// size[0] = radius[0]*2 + 1;
-			// size[1] = radius[1]*2 + 1;
-			// size[2] = radius[2]*2 + 1;
+			VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
+			outit.GoToBegin();
 
-			// region.SetSize(size);			
-			
-			// outputimage->SetRegions(region);
-			// outputimage->SetVectorLength(2);
-			// outputimage->Allocate();
-			
+			int i = 0;
+			while(!outit.IsAtEnd()){
+				outit.SetCenterPixel(vectorit.GetPixel(i));				
+				++outit;
+				i++;
+			}
 
-			// VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
-			// outit.GoToBegin();
-
-			// int i = 0;
-			// while(!outit.IsAtEnd()){
-			// 	outit.SetCenterPixel(vectorit.GetPixel(i));				
-			// 	++outit;
-			// 	i++;
-			// }
-
-			// VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
-			// writer->SetFileName(outfilename);
-			// writer->SetInput(outputimage);
-			// writer->Update();
+			cout<<"Writing file: "<<outfilename<<endl;
+			VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
+			writer->SetFileName(outfilename);
+			writer->SetInput(outputimage);
+			writer->Update();
 		}
 		++init;
 		++vectorit;

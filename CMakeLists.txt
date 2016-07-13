@@ -21,6 +21,7 @@ include(${SlicerExecutionModel_USE_FILE})
 
 
 add_subdirectory(src)
+add_subdirectory(sh)
 
 # Tests
 if(BUILD_TESTING)

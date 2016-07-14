@@ -57,6 +57,14 @@ var job = {
         {
         	"flag": "--outDir",
             "name": "./"	
+        },
+        {
+            "flag": "--neighborhood",
+            "name": "5,5,1"
+        },
+        {
+            "flag": "--numberOfSamples",
+            "name": "100"
         }
     ],
     "inputs": [

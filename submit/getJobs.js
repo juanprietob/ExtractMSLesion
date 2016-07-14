@@ -2,6 +2,7 @@ var clusterpost = require("clusterpost-lib");
 var path = require('path');
 var argv = require('minimist')(process.argv.slice(2));
 var Promise = require('bluebird');
+var _ = require('underscore');
 
 
 const getConfigFile = function (env, base_directory) {
@@ -64,11 +65,18 @@ clusterpost.userLogin(conf.user)
         }
     }else{
         if(!jobid){
-            return clusterpost.getJobs("extractMSLesion", "RUN")
+            return clusterpost.getJobs("extractMSLesion", "DONE")
             .then(function(jobs){
-                return Promise.map(jobs, function(job){
-                    return clusterpost.updateJobStatus(job._id);
-                });
+                // return Promise.map(jobs, function(job){
+                //     return clusterpost.updateJobStatus(job._id)
+                //     .then(function(status){
+                //         var obj = {};
+                //         obj[job._id] = status;
+                        
+                //         return obj;
+                //     });
+                // });
+                return _.pluck(jobs, "_id");
             });
         }else{
             return clusterpost.updateJobStatus(jobid);

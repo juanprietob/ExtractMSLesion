@@ -30,10 +30,10 @@ function executeMSLesion {
 
     extradir=${localdir#${dir}*}
 
-    mkdir -p $outdir/ms/${extradir}
-    $extractMSLesion --labelImg $pvec --img $pd --img $t2 --labelValue 6 --outDir $outdir/ms/${extradir}
-    mkdir -p $outdir/wm/${extradir}
-    $extractMSLesion --labelImg $pvec --img $pd --img $t2 --labelValue 8 --labelValueContains 6 --outDir $outdir/wm/${extradir}
+    echo mkdir -p $outdir/ms/${extradir}
+    echo $extractMSLesion --labelImg $pvec --img $pd --img $t2 --labelValue 6 --outDir $outdir/ms/${extradir}
+    echo mkdir -p $outdir/wm/${extradir}
+    echo $extractMSLesion --labelImg $pvec --img $pd --img $t2 --labelValue 8 --labelValueContains 6 --outDir $outdir/wm/${extradir}
 
 } 
 

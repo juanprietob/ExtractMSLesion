@@ -1,1 +1,4 @@
 bin
+certificate.pem
+conf.*
+node_modules

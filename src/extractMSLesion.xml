@@ -34,6 +34,13 @@
       <description>Input label value, the region or label set in labelValue must be in proximity to this label</description>
     </integer>
 
+    <integer>
+      <name>numberOfSamples</name>
+      <longflag>numberOfSamples</longflag>
+      <default>-1</default>
+      <description>Set the number of samples to be extracted from the image, -1 for all</description>
+    </integer>
+
     <double>
       <name>labelValueContainsPercentage</name>
       <longflag>labelValueContainsPercentage</longflag>

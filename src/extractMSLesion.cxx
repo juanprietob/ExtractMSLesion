@@ -6,6 +6,7 @@
 #include <itkVectorImage.h>
 #include <itkImageFileWriter.h>
 #include <itkNeighborhoodIterator.h>
+#include <itkImageRandomNonRepeatingIteratorWithIndex.h>
 #include <itkFixedArray.h>
 
 #include <uuid/uuid.h>
@@ -17,8 +18,11 @@ typedef unsigned short PixelType;
 static const int Dimension = 3;
 
 typedef itk::Image<PixelType, Dimension> InputImageType;
+typedef InputImageType::IndexType InputImageIndexType;
 typedef itk::ImageFileReader<InputImageType> InputImageFileReaderType;
 typedef itk::NeighborhoodIterator<InputImageType> InputIteratorType;
+typedef itk::ImageRandomNonRepeatingConstIteratorWithIndex<InputImageType> InputRandomIteratorType;
+
 
 typedef unsigned short VectorImagePixelType;
 typedef itk::VectorImage<VectorImagePixelType, Dimension> VectorImageType;  
@@ -77,7 +81,7 @@ void writeImage(VectorImageIteratorType* vectorit, VectorImageRadiusType radius,
   	writer->Update();
 }
 
-bool containsLabel(InputIteratorType* init, int labelValueContains, double labelValueContainsPercentage){
+bool containsLabel(InputIteratorType* init, InputImageIndexType index, int labelValueContains, double labelValueContainsPercentage){
 	if(labelValueContains == -1){
 		return true;
 	}
@@ -85,6 +89,7 @@ bool containsLabel(InputIteratorType* init, int labelValueContains, double label
 	int count = 0;
 	int size = init->Size();
 
+	init->SetLocation(index);
 	for(int i = 0; i < size; i++){
 		if(init->GetPixel(i) == labelValueContains){
 			count++;	
@@ -136,8 +141,6 @@ int main (int argc, char * argv[]){
 	radius[1] = neighborhood[1];
 	radius[2] = neighborhood[2];
 
-
-
 	VectorImageType::Pointer outputimage = VectorImageType::New();
 
 	VectorImageType::SizeType size;
@@ -151,8 +154,10 @@ int main (int argc, char * argv[]){
 	outputimage->SetVectorLength(vectorImageFilename.size());
 	outputimage->Allocate();
 
+	InputRandomIteratorType randomit(labelimage, labelimage->GetLargestPossibleRegion());
+	randomit.GoToBegin();
+
 	InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
-	init.GoToBegin();
 	
 
 	char *uuid = new char[100];	
@@ -163,14 +168,15 @@ int main (int argc, char * argv[]){
 	cout<<"Searching for label: "<<labelValue<<endl;
 	if(labelValueContains != -1){
 		cout<<"The region contains label: "<<labelValueContains<<", ratio: "<<labelValueContainsPercentage<<endl;
-	}
+	}	
 	
-	vectorit.GoToBegin();
-	while(!init.IsAtEnd() && !vectorit.IsAtEnd()){
-		if(init.GetCenterPixel() == labelValue && containsLabel(&init, labelValueContains, labelValueContainsPercentage)){
+	while(!randomit.IsAtEnd() && numberOfSamples){
+		if(randomit.Get() == labelValue && containsLabel(&init, randomit.GetIndex(), labelValueContains, labelValueContainsPercentage)){
 			uuid_t id;
 			uuid_generate(id);
 		  	uuid_unparse(id, uuid);
+
+		  	numberOfSamples--;
 
 		  	string outfilename = outputImageDirectory;
 		  	outfilename.append(string(uuid)).append(".nrrd");
@@ -186,6 +192,8 @@ int main (int argc, char * argv[]){
 			VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
 			outit.GoToBegin();
 
+			vectorit.SetLocation(randomit.GetIndex());
+
 			int i = 0;
 			while(!outit.IsAtEnd()){
 				outit.SetCenterPixel(vectorit.GetPixel(i));				
@@ -197,7 +205,7 @@ int main (int argc, char * argv[]){
 			VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
 			writer->SetFileName(outfilename);
 			writer->SetInput(outputimage);
-			writer->Update();
+			writer->Update();			
 		}
 		++init;
 		++vectorit;

@@ -155,6 +155,7 @@ int main (int argc, char * argv[]){
 	outputimage->Allocate();
 
 	InputRandomIteratorType randomit(labelimage, labelimage->GetLargestPossibleRegion());
+	randomit.SetNumberOfSamples(labelimage->GetLargestPossibleRegion().GetNumberOfPixels());
 	randomit.GoToBegin();
 
 	InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
@@ -209,6 +210,7 @@ int main (int argc, char * argv[]){
 		}
 		++init;
 		++vectorit;
+		++randomit;
 	}
 
 	delete[] uuid;

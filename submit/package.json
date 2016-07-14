@@ -4,6 +4,7 @@
   "description": "Submit a job to clusterpost",
   "main": "index.js",
   "dependencies": {
+    "bluebird": "^3.4.1",
     "clusterpost-lib": "^1.0.0",
     "minimist": "^1.2.0"
   },

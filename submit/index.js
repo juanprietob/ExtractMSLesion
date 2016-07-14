@@ -47,7 +47,7 @@ var job = {
             "name": "T2.nii.gz"
         },
         {
-        	"flag": "-labelValue",
+        	"flag": "--labelValue",
         	"name": "6"
         },
         {
@@ -111,6 +111,6 @@ clusterpost.userLogin(conf.user)
 	return clusterpost.createAndSubmitJob(job, inputfiles)
 })
 .then(function(jobid){
-	console.log(jobid);
+	console.log(inputdir, jobid);
 })
 .catch(console.error)

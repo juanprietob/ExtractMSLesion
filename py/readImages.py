@@ -22,21 +22,19 @@ test_size = args.testSize
 img_head = None
 img_size = None
 
-dirs = [d for d in os.listdir(rootdir) if os.path.isdir(os.path.join(rootdir, d))]
-
-def maybe_pickle(dirs, force):
+def maybe_pickle(currentdir, dirs, force):
 	dataset_names = []
 
 	for d in dirs:
 
-		set_filename = os.path.join(rootdir, d + '.pickle')
+		set_filename = os.path.join(currentdir, d + '.pickle')
 		if os.path.exists(set_filename) and not force:
 			# You may override by setting force=True.
 			print('%s already present - Skipping pickling.' % set_filename)
 		else:
 			print('Pickling %s.' % set_filename)
 
-			image_files = glob.glob(os.path.join(rootdir, d, '*.nrrd'))
+			image_files = glob.glob(os.path.join(currentdir, d, '*.nrrd'))
 
 			if(len(image_files) > 0):
 				image_data, img_head = nrrd.read(image_files[0])
@@ -61,8 +59,8 @@ def maybe_pickle(dirs, force):
 					dataset[num_images, :, :, :] = image_data
 					num_images += 1
 
-				except IOError as e:
-					print('Could not read:', file, '- it\'s ok, skipping.')
+				except Exception as e:
+					print('Could not read:', file, '- it\'s ok, skipping.', e)
 
 			dataset = dataset[0:num_images, :, :]
 			data["dataset"] = dataset
@@ -77,7 +75,10 @@ def maybe_pickle(dirs, force):
 
 	return dataset_names
 
-train_datasets = maybe_pickle(dirs, force)
+traindir = os.path.join(rootdir, "train")
+print traindir
+dirs = [d for d in os.listdir(traindir) if os.path.isdir(os.path.join(traindir, d))]
+train_datasets = maybe_pickle(traindir, dirs, force)
 
 
 def make_arrays(nb_rows, imgsize):
@@ -91,7 +92,8 @@ def make_arrays(nb_rows, imgsize):
 def merge_datasets(pickle_files, train_size, valid_size=0):
 	if len(pickle_files) > 0:
 		data = pickle.load(open(pickle_files[0], 'rb'))
-		img_size = data["img_head"]["sizes"]
+		img_head = data["img_head"]
+		img_size = img_head["sizes"]
 	else:
 		raise Exception("No pickle files in array")
 
@@ -128,12 +130,14 @@ def merge_datasets(pickle_files, train_size, valid_size=0):
 	    print('Unable to process data from', pickle_file, ':', e)
 	    raise
 	  
-	return valid_dataset, valid_labels, train_dataset, train_labels
+	return valid_dataset, valid_labels, train_dataset, train_labels, img_head
             
-           
-
-valid_dataset, valid_labels, train_dataset, train_labels = merge_datasets(train_datasets, train_size, valid_size)
-_, _, test_dataset, test_labels = merge_datasets(test_datasets, test_size)
+       
+valid_dataset, valid_labels, train_dataset, train_labels, img_head = merge_datasets(train_datasets, train_size, valid_size)
+testdir = os.path.join(rootdir, "test")
+dirs = [d for d in os.listdir(testdir) if os.path.isdir(os.path.join(testdir, d))]
+test_datasets = maybe_pickle(testdir, dirs, force)
+_, _, test_dataset, test_labels, img_head = merge_datasets(test_datasets, test_size)
 
 def randomize(dataset, labels):
   permutation = np.random.permutation(labels.shape[0])
@@ -145,13 +149,12 @@ train_dataset, train_labels = randomize(train_dataset, train_labels)
 test_dataset, test_labels = randomize(test_dataset, test_labels)
 valid_dataset, valid_labels = randomize(valid_dataset, valid_labels)
 
+#nrrd.write("out.nrrd", train_dataset[10], img_head)
 
-nrrd.write("out.nrrd", train_dataset[10], img_head)
-
-pickle_file = 'onlyMS.pickle'
+pickle_file = 'ms_wm.pickle'
 
 try:
-  f = open(pickle_file, 'wb')
+  f = open(os.path.join(rootdir, pickle_file), 'wb')
   save = {
     'train_dataset': train_dataset,
     'train_labels': train_labels,
@@ -159,7 +162,7 @@ try:
     'valid_labels': valid_labels,
     'test_dataset': test_dataset,
     'test_labels': test_labels,
-    'img_size': imgsize
+    'img_head': img_head
     }
   pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
   f.close()

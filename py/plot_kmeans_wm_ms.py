@@ -42,10 +42,13 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.', required=True)
+parser.add_argument('--out', help='Filename to save the output', default="out.png")
 
 args = parser.parse_args()
 
 pickle_file = args.pickle
+outputfilename = args.out
+print(outputfilename)
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
 train_dataset = data["train_dataset"]
@@ -73,6 +76,7 @@ print('Validation set reshaped', test_dataset.shape, test_labels.shape)
 data = train_dataset
 n_samples, n_features = data.shape
 n_digits = len(np.unique(train_labels))
+
 labels = train_labels
 
 sample_size = n_samples
@@ -153,4 +157,5 @@ plt.xlim(x_min, x_max)
 plt.ylim(y_min, y_max)
 plt.xticks(())
 plt.yticks(())
-plt.show()
+plt.savefig(outputfilename) 
+#plt.show()

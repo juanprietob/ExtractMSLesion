@@ -48,7 +48,7 @@ args = parser.parse_args()
 
 pickle_file = args.pickle
 outputfilename = args.out
-print(outputfilename)
+
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
 train_dataset = data["train_dataset"]

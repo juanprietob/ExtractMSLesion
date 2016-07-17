@@ -24,10 +24,13 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.', required=True)
+parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckpt")
 
 args = parser.parse_args()
 
 pickle_file = args.pickle
+outvariables = args.out
+
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
 train_dataset = data["train_dataset"]
@@ -59,7 +62,6 @@ def reformat(dataset, labels):
   labels = (np.arange(num_labels) == labels[:,None]).astype(np.float32)
   return dataset, labels
 
-print('Training set', train_dataset.shape, train_labels.shape)
 train_dataset, train_labels = reformat(train_dataset, train_labels)
 valid_dataset, valid_labels = reformat(valid_dataset, valid_labels)
 test_dataset, test_labels = reformat(test_dataset, test_labels)
@@ -80,7 +82,7 @@ def accuracy(predictions, labels):
 # In[ ]:
 
 batch_size = 16
-patch_size = [2, 6, 6]
+patch_size = 5
 depth = 32
 depth2 = 32
 num_hidden = 64
@@ -99,16 +101,16 @@ with graph.as_default():
   tf_test_dataset = tf.constant(test_dataset)
   
   # Variables.
-  layer1_weights = tf.Variable(tf.truncated_normal([patch_size[0], patch_size[1], patch_size[2], num_channels, depth], stddev=0.1))
+  layer1_weights = tf.Variable(tf.truncated_normal([2, patch_size, patch_size, num_channels, depth], stddev=0.1))
   layer1_biases = tf.Variable(tf.zeros([depth]))
 
-  layer2_weights = tf.Variable(tf.truncated_normal([patch_size[0], patch_size[1], patch_size[2], depth, depth2], stddev=0.1))
+  layer2_weights = tf.Variable(tf.truncated_normal([2, patch_size, patch_size, depth, depth2], stddev=0.1))
   layer2_biases = tf.Variable(tf.constant(1.0, shape=[depth2]))
 
   # Fully connected
-  layer3_weights = tf.Variable(tf.truncated_normal([ 2400, num_hidden], stddev=0.1))
+  layer3_weights = tf.Variable(tf.truncated_normal([ int(round(in_width/4.0))*int(round(in_height/4.0))*depth2, num_hidden], stddev=0.1))
   layer3_biases = tf.Variable(tf.constant(1.0, shape=[num_hidden]))
-  
+
   layer4_weights = tf.Variable(tf.truncated_normal([num_hidden, num_labels], stddev=0.1))
   layer4_biases = tf.Variable(tf.constant(1.0, shape=[num_labels]))
   
@@ -117,32 +119,30 @@ with graph.as_default():
 
 
     conv = tf.nn.conv3d(data, layer1_weights, stride, padding='SAME')
-
-    conv = tf.nn.avg_pool3d(conv, [1, 1, 2, 2, 1], [1, 1, 2, 2, 1], padding='SAME')
-
+    conv = tf.nn.avg_pool3d(conv, [1, 2, 2, 2, 1], [1, 2, 2, 2, 1], padding='SAME')
     hidden = tf.nn.relu(conv + layer1_biases)
 
+    hidden = tf.nn.dropout(hidden, 0.75)
+
     conv = tf.nn.conv3d(hidden, layer2_weights, stride, padding='SAME')
-
-    conv = tf.nn.avg_pool3d(conv, [1, 1, 2, 2, 1], [1, 1, 2, 2, 1], padding='SAME')
-
+    conv = tf.nn.avg_pool3d(conv, [1, 2, 2, 2, 1], [1, 2, 2, 2, 1], padding='SAME')
     hidden = tf.nn.relu(conv + layer2_biases)
 
-    shape = hidden.get_shape().as_list()
-    
-    reshape = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3] * shape[4]])
+    hidden = tf.nn.dropout(hidden, 0.75)
 
+    shape = hidden.get_shape().as_list()
+    reshape = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3] * shape[4]])
     hidden = tf.nn.relu(tf.matmul(reshape, layer3_weights) + layer3_biases)
 
     return tf.matmul(hidden, layer4_weights) + layer4_biases
   
   # Training computation.
   logits = model(tf_train_dataset)
-  loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels))
+  loss = tf.nn.l2_loss(tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels))
 
   # Optimizer.
   global_step = tf.Variable(0, trainable=False)
-  starter_learning_rate = 5e-6
+  starter_learning_rate = 5e-3
   learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 100000, 0.96)
   optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
   
@@ -154,9 +154,10 @@ with graph.as_default():
 
 # In[ ]:
 
-num_steps = 10000
+num_steps = 100000
 
 with tf.Session(graph=graph) as session:
+  saver = tf.train.Saver()
   tf.initialize_all_variables().run()
   print('Initialized')
   for step in range(num_steps):
@@ -169,10 +170,17 @@ with tf.Session(graph=graph) as session:
     if (step % 50 == 0):
       print('Minibatch loss at step %d: %f' % (step, l))
       print('Minibatch accuracy: %.1f%%' % accuracy(predictions, batch_labels))
-      print('Validation accuracy: %.1f%%' % accuracy(
-        valid_prediction.eval(), valid_labels))
+      print('Validation accuracy: %.1f%%' % accuracy(valid_prediction.eval(), valid_labels))
+      save_path = saver.save(session, outvariables)
+      print("Current model saved in file: %s" % save_path)
+  
   print('Test accuracy: %.1f%%' % accuracy(test_prediction.eval(), test_labels))
+  save_path = saver.save(session, outvariables)
+  print("Model saved in file: %s" % save_path)
 
+
+
+  
 
 # ---
 # Problem 1

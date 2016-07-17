@@ -8,9 +8,9 @@ from six.moves import cPickle as pickle
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir', help='Input directory', required=True)
 parser.add_argument("--force", help="Force pickle file generation")
-parser.add_argument("--trainSize", help="Output training size dataset", default=4000, type=int)
-parser.add_argument("--validSize", help="Output validation size dataset", default=1000, type=int)
-parser.add_argument("--testSize", help="Output test size dataset", default=1000, type=int)
+parser.add_argument("--trainSize", help="Output training size dataset", default=160000, type=int)
+parser.add_argument("--validSize", help="Output validation size dataset", default=20000, type=int)
+parser.add_argument("--testSize", help="Output test size dataset", default=20000, type=int)
 
 args = parser.parse_args()
 

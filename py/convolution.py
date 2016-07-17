@@ -142,7 +142,7 @@ with graph.as_default():
 
   # Optimizer.
   global_step = tf.Variable(0, trainable=False)
-  starter_learning_rate = 5e-3
+  starter_learning_rate = 5e-9
   learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 100000, 0.96)
   optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
   
@@ -168,8 +168,6 @@ with tf.Session(graph=graph) as session:
     feed_dict = {tf_train_dataset : batch_data, tf_train_labels : batch_labels}
     _, l, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
     if (step % 50 == 0):
-      print('Minibatch loss at step %d: %f' % (step, l))
-      print('Minibatch accuracy: %.1f%%' % accuracy(predictions, batch_labels))
       print('Validation accuracy: %.1f%%' % accuracy(valid_prediction.eval(), valid_labels))
       save_path = saver.save(session, outvariables)
       print("Current model saved in file: %s" % save_path)

@@ -9,6 +9,8 @@ from scipy import ndimage
 from sklearn import neighbors, linear_model
 from six.moves.urllib.request import urlretrieve
 from six.moves import cPickle as pickle
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -27,7 +29,7 @@ test_dataset = data["test_dataset"]
 test_labels = data["test_labels"]
 img_head = data["img_head"]
 img_size = img_head["sizes"]
-
+h = .02 
 
 # Reformat into a TensorFlow-friendly shape:
 # - convolutions need the image data formatted as a cube (width by height by #channels)
@@ -58,14 +60,16 @@ print('Validation set reshaped', valid_dataset.shape, valid_labels.shape)
 print('Validation set reshaped', test_dataset.shape, test_labels.shape)
 
 
-pickle_file = 'ms_wm_sgdfit.pickle'
+basedir = os.path.dirname(pickle_file);
+
+pickle_file = os.path.join(basedir, 'ms_wm_sgdfit.pickle')
 try:
   f = open(pickle_file, 'rb')
   data = pickle.load(f)
   sgdc = data['sgdc']
 except Exception as e:
   print(e)
-  sgdc = linear_model.SGDClassifier(n_iter=25, n_jobs=-1, loss='log')
+  sgdc = linear_model.SGDClassifier(n_iter=10000, n_jobs=-1, loss='log')
   sgdc.fit(train_dataset, train_labels)
 
 try:
@@ -81,3 +85,83 @@ except Exception as e:
 
 print('SGDC test score: %f' % sgdc.score(test_dataset, test_labels))
 print('SGDC validation score: %f' % sgdc.score(valid_dataset, valid_labels))
+
+
+pickle_file = os.path.join(basedir, 'ms_wm_pca.pickle')
+
+try:
+  f = open(pickle_file, 'rb')
+  data = pickle.load(f)
+  reduced_data = data['pca']
+except Exception as e:
+  print('Decomposing data:')
+  reduced_data = PCA(n_components=2).fit_transform(train_dataset)
+  try:
+    print('Saving data:')
+    f = open(pickle_file, 'wb')
+    save = {
+      'pca': reduced_data
+      }
+    pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
+    f.close()
+  except Exception as e:
+    print('Unable to save data to', pickle_file, ':', e)
+    raise
+
+
+pickle_file = os.path.join(basedir, 'ms_wm_kmeans.pickle')
+
+try:
+  f = open(pickle_file, 'rb')
+  data = pickle.load(f)
+  kmeans = data['kmeans']
+except Exception as e:
+  print('Clustering data:')
+  kmeans = KMeans(init='k-means++', n_clusters=num_labels, n_init=10)
+  kmeans.fit(reduced_data)
+  
+  try:
+    f = open(pickle_file, 'wb')
+    save = {
+      'kmeans': kmeans
+      }
+    pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
+    f.close()
+  except Exception as e:
+    print('Unable to save data to', pickle_file, ':', e)
+    raise
+
+
+# Plot the decision boundary. For that, we will assign a color to each
+x_min, x_max = reduced_data[:, 0].min() - 1, reduced_data[:, 0].max() + 1
+y_min, y_max = reduced_data[:, 1].min() - 1, reduced_data[:, 1].max() + 1
+
+
+
+plt.figure(1)
+plt.clf()
+# plt.imshow(reduced_data, interpolation='nearest',
+#            extent=(x_min, x_max, y_min, y_max),
+#            cmap=plt.cm.Paired,
+#            aspect='auto', origin='lower')
+
+def getColor(l):
+  if l == 0:
+    return 'magenta'
+  return 'cyan'
+
+colors = [getColor(l) for l in train_labels]
+
+plt.scatter(reduced_data[:, 0], reduced_data[:, 1], c=colors)
+#Plot the centroids as a white X
+centroids = kmeans.cluster_centers_
+plt.scatter(centroids[:, 0], centroids[:, 1],
+            marker='x', s=169, linewidths=3,
+            c=['r','b'], zorder=10)
+#plt.title('K-means clustering on the digits dataset (PCA-reduced data) Centroids are marked with white cross')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.xticks(())
+plt.yticks(())
+plt.show()
+

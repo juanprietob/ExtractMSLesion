@@ -29,7 +29,7 @@ parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckp
 args = parser.parse_args()
 
 pickle_file = args.pickle
-outvariables = args.out
+outvariablesfilename = args.out
 
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
@@ -55,7 +55,9 @@ in_height = img_size[2] #ydim
 in_width = img_size[1] #xdim
 num_channels = img_size[0] #numchannels
 
-import numpy as np
+# Reformat into a TensorFlow-friendly shape:
+# - convolutions need the image data formatted as a cube (width by height by #channels)
+# - labels as float 1-hot encodings.
 
 def reformat(dataset, labels):
   dataset = dataset.reshape((-1, in_depth, in_height, in_width, num_channels)).astype(np.float32)
@@ -70,128 +72,115 @@ print('Validation set', valid_dataset.shape, valid_labels.shape)
 print('Test set', test_dataset.shape, test_labels.shape)
 
 
-# In[ ]:
-
-def accuracy(predictions, labels):
-  return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1))
-          / predictions.shape[0])
-
-
 # Let's build a small network with two convolutional layers, followed by one fully connected layer. Convolutional networks are more expensive computationally, so we'll limit its depth and number of fully connected nodes.
 
 # In[ ]:
 
-batch_size = 16
-patch_size = 5
+batch_size = 256
+patch_size = 4
 depth = 32
-depth2 = 32
-num_hidden = 64
+depth2 = 64
+num_hidden = 1024
 
-#[batch, depth, height, width, channels]
-stride = [1, 1, 1, 1, 1]
+#[batch, height, width, channels]
+stride = [1, 1, 1, 1]
+
+def evaluate_accuracy(prediction, labels):
+  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1)), tf.float32)).eval()
 
 graph = tf.Graph()
 
 with graph.as_default():
 
-  # Input data.
-  tf_train_dataset = tf.placeholder(tf.float32, shape=(batch_size, in_depth, in_height, in_width, num_channels))
-  tf_train_labels = tf.placeholder(tf.float32, shape=(batch_size, num_labels))
+  def weight_variable(shape):
+    initial = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
+
+  def bias_variable(shape):
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
+
+  def conv3d(x, W):
+    return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1], padding='SAME')
+
+  def max_pool_3d(x):
+    return tf.nn.max_pool3d(x, ksize=[1, 2, 2, 2, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
+
+
+  x = tf.placeholder(tf.float32, shape=(batch_size, in_depth, in_height, in_width, num_channels))
+  y_ = tf.placeholder(tf.float32, shape=[None, num_labels])
+  
   tf_valid_dataset = tf.constant(valid_dataset)
   tf_test_dataset = tf.constant(test_dataset)
+
+  keep_prob = tf.placeholder(tf.float32)
+
+  W_conv1 = weight_variable([2, patch_size, patch_size, num_channels, depth])
+  b_conv1 = bias_variable([depth])
   
-  # Variables.
-  layer1_weights = tf.Variable(tf.truncated_normal([2, patch_size, patch_size, num_channels, depth], stddev=0.1))
-  layer1_biases = tf.Variable(tf.zeros([depth]))
+  W_conv2 = weight_variable([2, patch_size, patch_size, depth, depth2])
+  b_conv2 = bias_variable([depth2])
 
-  layer2_weights = tf.Variable(tf.truncated_normal([2, patch_size, patch_size, depth, depth2], stddev=0.1))
-  layer2_biases = tf.Variable(tf.constant(1.0, shape=[depth2]))
-
-  # Fully connected
-  layer3_weights = tf.Variable(tf.truncated_normal([ int(round(in_width/4.0))*int(round(in_height/4.0))*depth2, num_hidden], stddev=0.1))
-  layer3_biases = tf.Variable(tf.constant(1.0, shape=[num_hidden]))
-
-  layer4_weights = tf.Variable(tf.truncated_normal([num_hidden, num_labels], stddev=0.1))
-  layer4_biases = tf.Variable(tf.constant(1.0, shape=[num_labels]))
+  W_fc1 = weight_variable([256, num_hidden])
+  b_fc1 = bias_variable([num_hidden])
+  
+  W_fc2 = weight_variable([num_hidden, num_labels])
+  b_fc2 = bias_variable([num_labels])
   
   # Model.
-  def model(data):
+  def model(x_image):
 
+    #convolutional layers
+    h_conv1 = tf.nn.relu(conv3d(x_image, W_conv1) + b_conv1)
+    h_pool1 = max_pool_3d(h_conv1)
 
-    conv = tf.nn.conv3d(data, layer1_weights, stride, padding='SAME')
-    conv = tf.nn.avg_pool3d(conv, [1, 2, 2, 2, 1], [1, 2, 2, 2, 1], padding='SAME')
-    hidden = tf.nn.relu(conv + layer1_biases)
+    h_conv2 = tf.nn.relu(conv3d(h_pool1, W_conv2) + b_conv2)
+    h_pool2 = max_pool_3d(h_conv2)
 
-    hidden = tf.nn.dropout(hidden, 0.75)
+    #fully connected
+    shape = h_pool2.get_shape().as_list()
+    h_pool2_flat = tf.reshape(h_pool2, [-1, shape[1]*shape[2]*shape[3]*shape[4]])
+    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-    conv = tf.nn.conv3d(hidden, layer2_weights, stride, padding='SAME')
-    conv = tf.nn.avg_pool3d(conv, [1, 2, 2, 2, 1], [1, 2, 2, 2, 1], padding='SAME')
-    hidden = tf.nn.relu(conv + layer2_biases)
+    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    hidden = tf.nn.dropout(hidden, 0.75)
+    y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
-    shape = hidden.get_shape().as_list()
-    reshape = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3] * shape[4]])
-    hidden = tf.nn.relu(tf.matmul(reshape, layer3_weights) + layer3_biases)
-
-    return tf.matmul(hidden, layer4_weights) + layer4_biases
+    return y_conv
   
-  # Training computation.
-  logits = model(tf_train_dataset)
-  loss = tf.nn.l2_loss(tf.nn.softmax_cross_entropy_with_logits(logits, tf_train_labels))
-
-  # Optimizer.
-  global_step = tf.Variable(0, trainable=False)
-  starter_learning_rate = 5e-9
-  learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 100000, 0.96)
-  optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
+  y_conv = model(x)
   
-  # Predictions for the training, validation, and test data.
-  train_prediction = tf.nn.softmax(logits)
-  valid_prediction = tf.nn.softmax(model(tf_valid_dataset))
-  test_prediction = tf.nn.softmax(model(tf_test_dataset))
+  cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_conv), reduction_indices=[1]))
 
+  regularizers = tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2)
+  cross_entropy += 0.1 * regularizers
 
-# In[ ]:
+  #cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv, y_))
+  train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)
+  correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
+  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-num_steps = 100000
+  valid_prediction = model(tf_valid_dataset)
+  test_prediction = model(tf_test_dataset)
 
-with tf.Session(graph=graph) as session:
-  saver = tf.train.Saver()
-  tf.initialize_all_variables().run()
-  print('Initialized')
-  for step in range(num_steps):
-    offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
-    batch_data = train_dataset[offset:(offset + batch_size), :, :, :]
-    batch_labels = train_labels[offset:(offset + batch_size), :]
+  with tf.Session() as sess:
+    sess.run(tf.initialize_all_variables())
+    saver = tf.train.Saver()
+    for i in range(20000):
+      offset = (i * batch_size) % (train_labels.shape[0] - batch_size)
+      batch_data = train_dataset[offset:(offset + batch_size), :]
+      batch_labels = train_labels[offset:(offset + batch_size), :]
+      if i%100 == 0:
+        train_accuracy = accuracy.eval(feed_dict={x:batch_data, y_: batch_labels, keep_prob: 1.0})
+        print("step %d, training accuracy %g"%(i, train_accuracy))
+        valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
+        print("\tvalid accuracy %g"%valid_accuracy)
+        save_path = saver.save(sess, outvariablesfilename)
+        print("Current model saved in file: %s" % save_path)
+      train_step.run(feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
+
+    test_accuracy = evaluate_accuracy(test_prediction.eval(feed_dict={keep_prob: 1.0}), test_labels)
+    print("test accuracy %g"%test_accuracy)
     
-    feed_dict = {tf_train_dataset : batch_data, tf_train_labels : batch_labels}
-    _, l, predictions = session.run([optimizer, loss, train_prediction], feed_dict=feed_dict)
-    if (step % 50 == 0):
-      print('Validation accuracy: %.1f%%' % accuracy(valid_prediction.eval(), valid_labels))
-      save_path = saver.save(session, outvariables)
-      print("Current model saved in file: %s" % save_path)
   
-  print('Test accuracy: %.1f%%' % accuracy(test_prediction.eval(), test_labels))
-  save_path = saver.save(session, outvariables)
-  print("Model saved in file: %s" % save_path)
-
-
-
   
-
-# ---
-# Problem 1
-# ---------
-# 
-# The convolutional model above uses convolutions with stride 2 to reduce the dimensionality. Replace the strides by a max pooling operation (`nn.max_pool()`) of stride 2 and kernel size 2.
-# 
-# ---
-
-# ---
-# Problem 2
-# ---------
-# 
-# Try to get the best performance you can using a convolutional net. Look for example at the classic [LeNet5](http://yann.lecun.com/exdb/lenet/) architecture, adding Dropout, and/or adding learning rate decay.
-# 
-# ---

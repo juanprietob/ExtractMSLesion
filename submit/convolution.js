@@ -14,74 +14,51 @@ const getConfigFile = function (env, base_directory) {
   }
 };
 
-if(!argv["dir"]){
+if(!argv["pickle"] && !argv["script"]){
     console.error("Help: ");
-    console.error("--dir  Input directory must contain files PD.nii.gz, T2.nii.gz and pvec.nii.gz");
+    console.error("--pickle pickle file");
+    console.error("--out variables");
+    console.error("--script  python script");
     process.exit(1);
 }
 
-var inputdir = argv["dir"];
+var pickle = argv["pickle"];
+var script = argv["script"];
+var output = argv["out"];
 
 var inputfiles = [];
 
-inputfiles.push(path.join(inputdir, "PD.nii.gz"));
-inputfiles.push(path.join(inputdir, "T2.nii.gz"));
-inputfiles.push(path.join(inputdir, "pvec.nii.gz"));
-
-var status = argv["status"];
-
-var kill = argv["kill"];
-
-var jobdelete = argv["delete"];
-
+inputfiles.push(script);
+inputfiles.push(pickle);
 
 var job = {
-    "executable": "extractMSLesion",
+    "executable": "python",    
     "parameters": [
         {
-            "flag": "--img",
-            "name": "PD.nii.gz"
+            "flag": "",
+            "name": path.basename(script)
         },
         {
-            "flag": "--img",
-            "name": "T2.nii.gz"
+            "flag": "--pickle",
+            "name": path.basename(pickle)
         },
         {
-        	"flag": "--labelValue",
-        	"name": "6"
-        },
-        {
-            "flag": "--labelImg",
-            "name": "pvec.nii.gz"
-        },
-        {
-        	"flag": "--outDir",
-            "name": "./"	
-        },
-        {
-            "flag": "--neighborhood",
-            "name": "9,9,1"
-        },
-        {
-            "flag": "--numberOfSamples",
-            "name": "100"
+        	"flag": "--out",
+        	"name": path.basename(output)
         }
     ],
     "inputs": [
         {
-            "name": "PD.nii.gz"
+            "name": path.basename(script)
         },
         {
-            "name": "T2.nii.gz"
-        },
-        {
-            "name": "pvec.nii.gz"
+            "name": path.basename(pickle)
         }
     ],
     "outputs": [
         {
-            "type": "tar.gz",
-            "name": "./"
+            "type": "file",
+            "name": path.basename(output)
         },
         {
             "type": "file",
@@ -119,6 +96,6 @@ clusterpost.userLogin(conf.user)
 	return clusterpost.createAndSubmitJob(job, inputfiles)
 })
 .then(function(jobid){
-	console.log(inputdir, jobid);
+	console.log(script, jobid);
 })
 .catch(console.error)

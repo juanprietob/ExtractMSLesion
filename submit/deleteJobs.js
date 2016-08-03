@@ -52,7 +52,7 @@ login
     if(jobid){
         return clusterpost.deleteJob(jobid);
     }else{
-        return clusterpost.getJobs("extractMSLesion", "DONE")
+        return clusterpost.getJobs("extractMSLesion", "FAIL")
         .then(function(jobs){
             return Promise.map(_.pluck(jobs, "_id"), clusterpost.deleteJob);
         });

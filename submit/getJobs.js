@@ -16,15 +16,25 @@ const getConfigFile = function (env, base_directory) {
   }
 };
 
-if(!argv["dir"]){
-    console.error("Help: ");
+if(argv["help"] || argv["h"]){
+    console.error("Options: ");
     console.error("--dir  Output directory");
+    console.error("--status  one of [DONE, RUN, FAIL, EXIT, UPLOADING, CREATE]");
+    console.error("--j job id");
     process.exit(1);
 }
 
-var outputdir = argv["dir"];
+var outputdir = "./out";
+if(argv["dir"]){
+    outputdir = argv["dir"];
+}
 var status = argv["status"];
 var jobid = argv["j"];
+var executable;
+
+if(argv["executable"]){
+    executable = argv["executable"];
+}
 
 var env = process.env.NODE_ENV;
 if(!env) throw "Please set NODE_ENV variable.";
@@ -43,15 +53,15 @@ clusterpost.userLogin(conf.user)
 .then(function(res){
     if(!status){
         if(!jobid){
-            return clusterpost.getJobs("extractMSLesion", "DONE")
+            return clusterpost.getJobs(executable, "DONE")
             .then(function(jobs){
                 return Promise.map(jobs, function(job){
-                    return clusterpost.getJobOutputs(job, path.join(outputdir, job._id));
-                })
-                .then(function(res){
-                    return Promise.map(jobs, function(job){
+                    return clusterpost.getJobOutputs(job, path.join(outputdir, job._id))
+                    .then(function(){
                         return clusterpost.deleteJob(job._id);
                     });
+                }, {
+                    concurrency: 2
                 });
             });
         }else{
@@ -65,7 +75,7 @@ clusterpost.userLogin(conf.user)
         }
     }else{
         if(!jobid){
-            return clusterpost.getJobs("extractMSLesion", "DONE")
+            return clusterpost.getJobs(executable, status)
             .then(function(jobs){
                 // return Promise.map(jobs, function(job){
                 //     return clusterpost.updateJobStatus(job._id)

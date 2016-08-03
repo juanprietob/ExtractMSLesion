@@ -12,13 +12,25 @@ ${CMAKE_MODULE_PATH}
 )
 
 # find ITK headers
-find_package(ITK REQUIRED)
+find_package(ITK COMPONENTS ITKIOImageBase ITKImageFilterBase ITKStatistics ITKIONIFTI ITKIONRRD REQUIRED)
 include(${ITK_USE_FILE})
 
 # find SlicerExecutionModel headers
 find_package(SlicerExecutionModel REQUIRED)
 include(${SlicerExecutionModel_USE_FILE})
 
+
+# find SlicerExecutionModel headers
+FIND_PACKAGE(PythonInterp)
+FIND_PACKAGE(PythonLibs)
+
+message(STATUS ${PYTHON_INCLUDE_PATH})
+
+INCLUDE_DIRECTORIES("/usr/local/Cellar/python/2.7.11/Frameworks/Python.framework/Versions/2.7/include/python2.7"
+	"/usr/local/Cellar/python/2.7.11/Frameworks/Python.framework/Versions/2.7/include/python2.7")
+LINK_DIRECTORIES("/usr/local/Cellar/python/2.7.11/Frameworks/Python.framework/Versions/2.7/lib/python2.7/config")
+
+SET(PYTHON_LIBRARIES python2.7 dl)
 
 add_subdirectory(src)
 add_subdirectory(sh)

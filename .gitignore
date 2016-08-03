@@ -2,3 +2,6 @@ bin
 certificate.pem
 conf.*
 node_modules
+binrel
+*.nrrd
+*.eps

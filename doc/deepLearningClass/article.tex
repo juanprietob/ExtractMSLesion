@@ -1,0 +1,217 @@
+
+\documentclass[]{spie}  %>>> use for US letter paper
+%%\documentclass[a4paper]{spie}  %>>> use this instead for A4 paper
+%%\documentclass[nocompress]{spie}  %>>> to avoid compression of citations
+%% \addtolength{\voffset}{9mm}   %>>> moves text field down
+%% \renewcommand{\baselinestretch}{1.65}   %>>> 1.65 for double spacing, 1.25 for 1.5 spacing 
+%  The following command loads a graphics package to include images 
+%  in the document. It may be necessary to specify a DVI driver option,
+%  e.g., [dvips], but that may be inappropriate for some LaTeX 
+%  installations. 
+\usepackage[]{graphicx}
+\usepackage{subfigure}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+
+\graphicspath{{./images/}}
+
+\title{Large Deep Neural Networks for MS Lesion Segmentation} 
+
+\author{Juan C. Prieto.\supit{a}, Michele Cavallari.\supit{b}, Miklos Palotai\supit{b}, Alfredo Morales Pinzon\supit{b}, Svetlana Egorova\supit{b}, Martin Styner.\supit{a}, Charles R.G. Guttmann.\supit{b}
+\skiplinehalf
+\supit{a}NIRAL, UNC, Chapel Hill, NC, United States; 
+\supit{b}CNI, Brigham and Women's Hospital, Boston, MA, United States;
+}
+
+%>>>> Further information about the authors, other than their 
+%  institution and addresses, should be included as a footnote, 
+%  which is facilitated by the \authorinfo{} command.
+
+\authorinfo{Further author information: (Send correspondence to J.C.P)\\J.C.P.: E-mail: jprieto@med.unc.edu}
+%%>>>> when using amstex, you need to use @@ instead of @
+ 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+%>>>> uncomment following for page numbers
+% \pagestyle{plain}    
+%>>>> uncomment following to start page numbering at 301 
+%\setcounter{page}{301} 
+ 
+  \begin{document} 
+  \maketitle 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+\begin{abstract}
+
+Multiple sclerosis (MS) is a multi-factorial autoimmune disorder, characterized by spatial and temporal dissemination of brain lesions
+that are visible in T2-weighted and Proton Density (PD) MRI.
+Assessment of lesion burden and is useful for monitoring the course of the disease, 
+and assessing correlates of clinical outcomes. 
+
+Although there are established semi-automated methods to measure lesion volume, 
+most of them require human interaction and editing, which are time consuming and limits the ability to analyze large sets of data
+with high accuracy.  
+The primary objective of this work is to 
+improve existing segmentation algorithms and accelerate the time consuming operation of identifying and 
+validating MS lesions. 
+
+In this paper, a Large Scale Deep Neural Network for MS Lesion Segmentation is implemented.
+The MS lesion samples are extracted from the Partners Comprehensive Longitudinal Investigation of Multiple Sclerosis (CLIMB) study. 
+A set of 6000 cases with T2 and PD images and a corresponding label map were used to train a Deep Neural Network to identify 
+the white matter (WM) and MS lesion classes. Initial tests using this network achieved a 92\% accuracy rate. 
+A secondary goal was to enable this data repository for big data analysis by using this algorithm 
+to segment the remaining cases available in the CLIMB repository. 
+
+\end{abstract}
+
+%>>>> Include a list of keywords after the abstract 
+
+\keywords{Deep learning, multiple sclerosis MS, segmentation, large scale}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{INTRODUCTION}
+\label{sec:intro}
+
+Multiple sclerosis (MS) is a multi-factorial autoimmune disorder, in the development of which both genetic and environmental factors play a role \cite{taylor2011major}. It is characterized by the focal inflammation and breakdown of the myelin which protects nerve fibers in the central nervous system
+resulting in focal lesions that appear in multiple places within the central nervous system.
+MS lesions are visible in T2-weighted MR sequences as hyperintensities and in Proton Density (PD) 
+images\cite{simon2006standardized}.
+
+Recent MS lesion segmentation approaches include deep convolutional encoder networks 
+using convolutional and deconvolutional layers. The novelty of this method relies on learning patterns from entire images, in contrast to patch based methods that require patch selection and extraction. MS lesion segmentation is done by segmenting the underrepresented classes in the network\cite{brosch2015deep}.
+Other approaches are focused in learning spatial features and using multi-channel 3D MR images with labeled (pre-segmented data)\cite{yoo2014deep}.
+
+While there are well established algorithms for MS lesion segmentation, most of them require human interaction and editing.
+Using recent classification techniques there is the possibility to improve existing methods. 
+Deep Learning algorithms extract high-level, complex abstractions of the data. A key benefit of these types of algorithms is that by increasing the 
+number of samples to train the network, the classification accuracy improves when the network is presented with new cases\cite{najafabadi2015deep}. 
+Even though Deep learning algorithms have excellent results in classification tasks, one of the major drawbacks for MS lesion classification 
+is related to the number of samples that are used to train the network. In other words, 
+the number of MS lesions samples is much lower than the number of samples that could be drawn from the surrounding WM tissue. 
+
+The primary objective of this work is to improve existing methods of MS lesion segmentation using vast amounts of MS lesion samples to train a deep neural network.
+The neural network presented here was trained using data from the Partners Comprehensive Longitudinal Investigation of Multiple Sclerosis (CLIMB)
+study. CLIMB has a large repository of labeled images with MS lesions. 
+The following section explains the methods used to train the deep neural network. The network is trained using multi-channel data proton density (PD) and 
+T2 weighted images. 
+
+\section{MATERIALS}
+
+The Partners Multiple Sclerosis center has over 2000 patients enrolled in the CLIMB study at the Brigham and Women’s Hospital. Patient follow-up has an average of 2.6 (SD 2.8) years. All CLIMB patients have a diagnosis of MS as defined by the 2005 McDonald criteria. 
+
+CLIMB subjects have a clinic visit every six months with a complete neurological examination, including each patient’s expanded disability status score (EDSS), body mass index (BMI) and other clinical variables. The routine protocol for the image acquisition includes a PD image with echo time (ET) 30, pixel spacing $0.9375,0.9375, 3$ and repetition time (RT) 3000. A T2-weighted image is acquired with 80 ET, equal pixel spacing and 3000 TR. A T1 weighted image is also 
+available pre and post gadolinium injection. 
+
+To train the network, the PD and T2 images are used. Both of these images are inherently co-registered. 
+A label map for these images was generated by an automatic segmentation method and the lesions were validated, and corrected as needed by an imaging expert.
+
+The following section explains the methods used to train the deep neural network. 
+
+\section{METHODS} 
+\label{sec:METHODS}
+
+To build the network, the TensorFlow\footnote{\url{https://www.tensorflow.org/}} (TF) framework was used. TF is an open source software library for machine learning tasks.
+The network was trained for two classes MS lesion and white matter (WM). 
+After examination of the CLIMB database, 6000 time points were found with available label maps. 
+The images were sampled using the label maps for MS lesions and also for WM. From each timepoint, all the MS lesions were extracted and around 100 randomly selected samples were extracted for the WM class. About $320000$ samples were randomly selected ($160000$ each class)
+for training, $20000$ samples were chosen to validate the network and 
+$20000$ samples for testing purposes. 
+
+The average lesion size is $2.6$ voxels width/height with standard deviation of $2.8$ and $1.5$ voxels in depth and standard deviation $1.8$.
+From these statistics a patch size of $[7, 7, 3]$ was chosen to extract samples from the data. 
+The network was setup with 4 layers. 3 deeply connected layers with $1024, 1024, 512$ hidden nodes respectively and a fully connected layer 
+with $2$ nodes as output. Each layer uses rectified linear units to connect the output of one layer to the next and the fully connected layer
+uses a softmax function to generate a probability for each class.
+The network was trained with a Gradient Descent Optimizer using an exponential decay function for the learning rate. 
+The starting learning rate was set at $e^{-9}$.
+
+A regularization term is added to avoid over-fitting using $l_2$ norm on the weights multiplied by a small constant $0,1$. 
+While training, dropout with rate 0.5 was used to avoid over fitting and increase the classification accuracy. 
+The network was optimized using batches of samples with size $2048$ and the optimization was stopped after $15000$ iterations. 
+
+The following section shows the results of this deep neural network. 
+
+% \begin{eqnarray}
+% Y = X * W + b \\
+% Relu = max(Y, 0).
+% \label{equ:layer}
+% \end{eqnarray}
+
+% \begin{equation}
+% Softmax(Y) = \frac{exp(Y)}{\Sigma_{i=0}^n exp(Y_i)}.
+% \label{equ:softmax}
+% \end{equation}
+
+% \begin{equation}
+% Regularization(W) = 0.1 * l2_loss(W).
+% \label{equ:regularization}
+% \end{equation}
+
+% \begin{equation}
+% E = argmin \Sigma_{l=0}^3 
+% \end{equation}
+
+\section{RESULTS}
+
+Figure \ref{fig:inputData}.a-.b shows two samples of MS lesions and WM displayed as RGB images (the contrast in the images has been modified, 
+the PD density image is set in the red channel and the T2 is set in the green channel).
+All the samples have been projected in two dimensions using principal component analysis (PCA). 
+PCA finds the linear lower-dimensional representation of the data such that 
+the variance of the reconstructed data is preserved. This plot shows a red and blue cross, they represent the centroids 
+obtained from analyzing the data using KMeans clustering algorithm\cite{scikit-learn} (the centroids do not correspond to the centroids of the two classes).
+The data points shown in magenta correspond to MS lesions while the WM are shown in cyan.
+
+\begin{figure}
+	\centering 
+	\subfigure[MS Lesion]{\includegraphics[width=3cm]{MSLesionOut.eps}}
+	\subfigure[WM]{\includegraphics[width=3cm]{NormalWMOut.eps}}
+	\subfigure[PCA projection]{\includegraphics[width=6cm]{pcaProjection1Out}}
+	\subfigure[Zoom in in the PCA]{\includegraphics[width=4cm]{pcaProjection2Out}}
+	\caption[Input data for the network]{a) MS Lesion and b) WM image sample. RGB images, the PD is on the red channel and the green channel represents the T2 image. The contrast has been modified in these images to show the features of the MS lesion compared to the WM. c) All the samples are analyzed using principal component analysis and projected to the two dimensional plane. d) Zoom in the upper level of the projection.}
+	\label{fig:inputData}
+\end{figure}
+
+These MS and WM samples are used to train the network. 
+170000 samples from each class are randomly chosen and shuffled in order to train the network. 
+
+\begin{figure}
+	\centering 
+	\subfigure[Cross entropy loss]{\includegraphics[width=0.45\textwidth]{cross_entropyOut.eps}}
+	\subfigure[Regularization]{\includegraphics[width=0.45\textwidth]{regularizationOut.eps}}
+	\caption[Cross entropy]{a) Cross entropy loss output of the network after each iteration. b) Regularization term after each iteration}
+	\label{fig:cross_entropy}
+\end{figure}
+Figure \ref{fig:cross_entropy}.a shows the evolution of the cross entropy loss during the optimization.
+Figure \ref{fig:cross_entropy}.b shows the evolution of the regularization term used to avoid over-fitting. 
+The cross entropy loss plus the regularization are minimized. Figure \ref{fig:accuracy} shows the progression accuracy of the training. 
+\begin{figure}
+	\centering 
+	\includegraphics[width=0.8\textwidth]{minibatch_accuracyOut.eps}
+	\caption[Accuracy of the minibatch]{After each iteration the classification accuracy of the neural network improves.}
+	\label{fig:accuracy}
+\end{figure}
+
+During the optimization, the accuracy of the network reached a maximum of 93\% of accuracy. 
+This deep network is tested with using 20000 samples images that were never used to train the network.
+The classification accuracy was 92\%.
+
+\section{CONCLUSIONS} 
+
+Initial tests using this network achieved a 92\% accuracy rate. However, in order to use this network in a production setting,
+the selection for WM matter patches must be improved. For example, by training additional classes to identify the boundary between 
+the WM and the GM surfaces. 
+Future work will include another class to detect chronic ``black hole" lesions. This type of lesions are characterized by their hypointensity appearance on T1-weighted images, after the injection of a gadolinium based contrast agent.
+By studying these lesions in a cross sectional study, we aim to demonstrate that the ratio of chronic lesions to overall T2 lesion load is significantly higher in areas of low compared to high normative blood perfusion. In longitudinal analysis, we aim to demonstrate that the regions susceptible to the formation of destructive ``black holes" progressively extend to areas of higher normative perfusion, reflecting impaired perfusion with age.
+
+\acknowledgments
+
+J.C. Prieto and M. Cavallari are supported by Research Fellowship Award from Mallinckrodt Pharmaceuticals.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% References %%%%%
+
+\bibliography{report}   %>>>> bibliography data in report.bib
+\bibliographystyle{spiebib}   %>>>> makes bibtex use spiebib.bst
+
+\end{document} 

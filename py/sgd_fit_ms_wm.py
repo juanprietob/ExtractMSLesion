@@ -35,7 +35,7 @@ h = .02
 # - convolutions need the image data formatted as a cube (width by height by #channels)
 # - labels as float 1-hot encodings.
 
-num_labels = 2
+num_labels = 3
 
 in_depth = img_size[3] #zdim
 in_height = img_size[2] #ydim
@@ -61,8 +61,9 @@ print('Validation set reshaped', test_dataset.shape, test_labels.shape)
 
 
 basedir = os.path.dirname(pickle_file);
+filename = os.path.splitext(os.path.basename(pickle_file))[0]
 
-pickle_file = os.path.join(basedir, 'ms_wm_sgdfit.pickle')
+pickle_file = os.path.join(basedir, filename + "sgdfit.pickle")
 try:
   f = open(pickle_file, 'rb')
   data = pickle.load(f)
@@ -87,7 +88,7 @@ print('SGDC test score: %f' % sgdc.score(test_dataset, test_labels))
 print('SGDC validation score: %f' % sgdc.score(valid_dataset, valid_labels))
 
 
-pickle_file = os.path.join(basedir, 'ms_wm_pca.pickle')
+pickle_file = os.path.join(basedir, filename + 'pca.pickle')
 
 try:
   f = open(pickle_file, 'rb')
@@ -109,7 +110,7 @@ except Exception as e:
     raise
 
 
-pickle_file = os.path.join(basedir, 'ms_wm_kmeans.pickle')
+pickle_file = os.path.join(basedir, filename + '_kmeans.pickle')
 
 try:
   f = open(pickle_file, 'rb')
@@ -148,6 +149,8 @@ plt.clf()
 def getColor(l):
   if l == 0:
     return 'magenta'
+  elif l == 1:
+    return 'yellow'
   return 'cyan'
 
 colors = [getColor(l) for l in train_labels]

@@ -78,6 +78,11 @@ def maybe_pickle(currentdir, dirs, force):
 traindir = os.path.join(rootdir, "train")
 print traindir
 dirs = [d for d in os.listdir(traindir) if os.path.isdir(os.path.join(traindir, d))]
+
+outfilename = ""
+for d in dirs:
+	outfilename += d + "_"
+
 train_datasets = maybe_pickle(traindir, dirs, force)
 
 
@@ -136,6 +141,7 @@ def merge_datasets(pickle_files, train_size, valid_size=0):
 valid_dataset, valid_labels, train_dataset, train_labels, img_head = merge_datasets(train_datasets, train_size, valid_size)
 testdir = os.path.join(rootdir, "test")
 dirs = [d for d in os.listdir(testdir) if os.path.isdir(os.path.join(testdir, d))]
+
 test_datasets = maybe_pickle(testdir, dirs, force)
 _, _, test_dataset, test_labels, img_head = merge_datasets(test_datasets, test_size)
 
@@ -149,9 +155,9 @@ train_dataset, train_labels = randomize(train_dataset, train_labels)
 test_dataset, test_labels = randomize(test_dataset, test_labels)
 valid_dataset, valid_labels = randomize(valid_dataset, valid_labels)
 
-#nrrd.write("out.nrrd", train_dataset[10], img_head)
+#nrrd.write("out.nrrd", train_dataset[10], img_head]
 
-pickle_file = 'ms_wm.pickle'
+pickle_file = outfilename + '.pickle'
 
 try:
   f = open(os.path.join(rootdir, pickle_file), 'wb')

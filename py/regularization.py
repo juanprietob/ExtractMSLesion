@@ -20,27 +20,14 @@ import numpy as np
 import tensorflow as tf
 from six.moves import cPickle as pickle
 import nrrd
-
-
-# First reload the data we generated in _notmist.ipynb_.
-
-# In[ ]:
-
-# pickle_file = 'notMNIST.pickle'
-# with open(pickle_file, 'rb') as f:
-#   data = pickle.load(f)
-#   train_dataset = data['train_dataset']
-#   train_labels = data['train_labels']
-#   valid_dataset = data['valid_dataset']
-#   valid_labels = data['valid_labels']
-#   test_dataset = data['test_dataset']
-#   test_labels = data['test_labels']
-#   del data  # hint to help gc free up memory
-
+import multiprocessing
+from multiprocessing import Pool
 import argparse
+import glob, os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.')
+parser.add_argument('--num_labels', help='Set the number of labels of the training data', default=2, type=int)
 parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckpt")
 parser.add_argument('--summary', help='Create a summary of the graph', default=False)
 parser.add_argument('--img', help='Evaluate an image')
@@ -48,11 +35,13 @@ parser.add_argument('--imgLabel', help='Evaluate an image and use label map')
 parser.add_argument('--neighborhood', help='Set the image neighborhood, required when using img', nargs='+', type=int)
 parser.add_argument('--model', help='The deep learning model')
 parser.add_argument('--outImageLabel', help='Output image with probability')
-parser.add_argument('--sample', help='Evaluate an sample image')
+parser.add_argument('--sample', help='Evaluate a sample image')
+parser.add_argument('--evaluateDir', help='Set a directory to evaluate the image sampes')
 
 args = parser.parse_args()
 
 pickle_file = args.pickle
+num_labels = args.num_labels
 outvariables = args.out
 createsummary = args.summary
 img = args.img
@@ -61,8 +50,7 @@ model = args.model
 neighborhood = args.neighborhood
 outImageLabel = args.outImageLabel
 sample = args.sample
-
-num_labels = 2
+evaluateDir = args.evaluateDir
 
 img_data = None
 img_size = None
@@ -70,6 +58,7 @@ img_size_in = None
 img_size_all = 1
 img_data_label = None
 img_head_label = None
+evaluate_img = None
 
 if model:
 
@@ -93,6 +82,30 @@ if model:
     except Exception as e:
       print('Could not read:', img, e)
       quit()
+  elif not evaluateDir is None:
+    image_files = glob.glob(os.path.join(evaluateDir, '*.nrrd'))
+    evaluate_img_size = None
+    if(len(image_files) > 0):
+      data, head = nrrd.read(image_files[0])
+      img_size = head["sizes"]
+      print("Using image size: ", img_size)
+    else:
+      raise Exception("No .nrrd files in directory " + d)
+    
+    evaluate_img = np.ndarray(shape=(len(image_files), img_size[0], img_size[1], img_size[2], img_size[3]), dtype=np.float32)
+    num_images = 0
+
+    for file in image_files:
+      print(file)
+      try:
+        data, head = nrrd.read(file)
+        evaluate_img[num_images, :, :, :] = data
+        num_images += 1
+      except Exception as e:
+        print('Could not read:', file, '- it\'s ok, skipping.', e)
+
+    evaluate_img = evaluate_img[0:num_images, :, :]
+    
   else:
     print('type --help to learn how to use this program')
     quit()
@@ -147,7 +160,7 @@ with graph.as_default():
   keep_prob = tf.placeholder(tf.float32)
   tf_image = tf.placeholder(tf.float32,shape=(1, img_size[0]*img_size[1]*img_size[2]*img_size[3]))
 
-  if not img and not sample:
+  if not img and not sample and not evaluateDir:
     tf_valid_dataset = tf.constant(valid_dataset)
     tf_test_dataset = tf.constant(test_dataset)
 
@@ -249,13 +262,13 @@ with graph.as_default():
 
   # Optimizer.
   global_step = tf.Variable(0, trainable=False)
-  starter_learning_rate = 1e-9
+  starter_learning_rate = 1e-8
   learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 100000, 0.96)
   optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss + reg, global_step=global_step)
   
   # Predictions for the training, validation, and test data.
   train_prediction = tf.nn.softmax(layerout)
-  if not img and not sample:
+  if not img and not sample and not evaluateDir:
     if createsummary:
       valid_prediction = tf.nn.softmax(layers(tf_valid_dataset, "valid"))
       test_prediction = tf.nn.softmax(layers(tf_test_dataset, "test"))
@@ -267,33 +280,35 @@ with graph.as_default():
   else:
     predict_image = tf.nn.softmax(layers(tf_image))
 
-def getNeighborhood(image, x, y, z, neighborhood, array):
-  for i, xx in zip(range(0, neighborhood[0]*2 + 1), range(-neighborhood[0], neighborhood[0])):
-    for j, yy in zip(range(0, neighborhood[1]*2 + 1), range(-neighborhood[1], neighborhood[1])):
-      for k, zz in zip(range(0, neighborhood[2]*2 + 1), range(-neighborhood[2], neighborhood[2])):
-        array[0][i][j][k] = image[0][xx + x][yy + y][zz + z]
-        array[1][i][j][k] = image[1][xx + x][yy + y][zz + z]
-  return array
-
-def predictImage(image, size, neighborhood, imglabel, imgheadlabel):
-  neighborhood_size = (neighborhood[0]*2 + 1)*(neighborhood[1]*2 + 1)*(neighborhood[2]*2 + 1)*num_labels
+def getNeighborhood(image, x, y, z, neighborhood):
   neigh = np.zeros((num_labels, neighborhood[0]*2 + 1, neighborhood[1]*2 + 1, neighborhood[2]*2 + 1))
-  labeledImage = np.zeros(size)
-  for i in range(neighborhood[0], size[1]-neighborhood[0]):
-    for j in range(neighborhood[1], size[2]-neighborhood[1]):
-      for k in range(neighborhood[2], size[3]-neighborhood[2]):
+  for i in range(-neighborhood[0], neighborhood[0]+1):
+    for j in range(-neighborhood[1], neighborhood[1]+1):
+      for k in range(-neighborhood[2], neighborhood[2]+1):
+        ni = i + neighborhood[0]
+        nj = j + neighborhood[1]
+        nk = k + neighborhood[2]
+        neigh[0][ni][nj][nk] = image[0][x+i][y+j][z+k]
+        neigh[1][ni][nj][nk] = image[1][x+i][y+j][z+k]
+  return neigh
+
+def predictImage(image, region, neighborhood, imglabel):
+  neighborhood_size = (neighborhood[0]*2 + 1)*(neighborhood[1]*2 + 1)*(neighborhood[2]*2 + 1)*num_labels
+  for i in range(region[0], region[1]):
+    for j in range(region[2], region[3]):
+      for k in range(region[4], region[5]):
         predict = True
-        
-        if not imglabel is None:
-          predict = imglabel[i][j][k] == 6
-
+        if not img_data_label is None:
+          predict = img_data_label[i][j][k] == 8 or img_data_label[i][j][k] == 6
         if predict:
-          neigh = getNeighborhood(image, i, j, k, neighborhood, neigh)
-          prediction = predict_image.eval({keep_prob: 1, tf_image: neigh.reshape(-1, neighborhood_size).astype(np.float32)})
-          labeledImage[0][i][j][k] = prediction[0][0]
-          labeledImage[1][i][j][k] = prediction[0][1]
+          array = getNeighborhood(image, i, j, k, neighborhood)
+          prediction = predict_image.eval({keep_prob: 1, tf_image: array.reshape(-1, neighborhood_size).astype(np.float32)})
+          if(prediction[0][0] == 1):
+            imglabel[i][j][k] = 1
+  return True
 
-  return labeledImage
+def predictImageStar(param):
+  return predictImage(*param)
 
 
 with tf.Session(graph=graph) as session:
@@ -302,7 +317,12 @@ with tf.Session(graph=graph) as session:
   
   if createsummary:
     merged = tf.merge_all_summaries()
-    train_writer = tf.train.SummaryWriter('./train', session.graph)
+    summarydir = os.path.splitext(pickle_file)[0] + "summary"
+    try:
+      os.mkdir(summarydir)
+    except Exception as e:
+      print(e)
+    train_writer = tf.train.SummaryWriter(summarydir, session.graph)
 
   if model:
     
@@ -310,12 +330,46 @@ with tf.Session(graph=graph) as session:
     
     if img_data is not None:
       if img:
-        labelImg = predictImage(img_data, img_size_in, neighborhood, img_data_label, img_head_label)
+
+        imglabel = np.zeros((img_size_in[1], img_size_in[2], img_size_in[3]))
+        region = [0, img_size_in[1], 0, img_size_in[2], 0, img_size_in[3]]
+        predictImage(img_data, region, neighborhood, imglabel)
+
         if outImageLabel:
-          nrrd.write(outImageLabel, labelImg)
+          nrrd.write(outImageLabel, imglabel)
+
+        # if __name__ == '__main__':
+        #   numthreads = multiprocessing.cpu_count()
+        #   params = []
+        #   numsplit = numthreads
+        #   region_size_x = img_size_in[1]/numsplit
+
+        #   while region_size_x < 0 and numsplit > 1:
+        #     --numsplit
+        #     region_size_x = img_size_in[1]/numsplit
+          
+        #   imglabel = np.zeros((num_labels, img_size_in[1], img_size_in[2], img_size_in[3]))
+
+        #   for ns in range(0, numsplit):
+        #     region = [region_size_x*ns, region_size_x*ns + region_size_x, 0, img_size_in[2], 0, img_size_in[3]]
+        #     params.append([img_data, region, neighborhood, imglabel])
+
+        #   p = Pool(processes=1)
+        #   print(p.map(predictImageStar, params))
+          
+        #   if outImageLabel:
+        #     nrrd.write(outImageLabel, imglabel)
+
+
       elif sample is not None:
         prediction = predict_image.eval({keep_prob: 1, tf_image: img_data.reshape(-1,img_size_all ).astype(np.float32)})
+        print(prediction[0][0]);
+    elif evaluateDir is not None:
+      for eval_img in evaluate_img:
+        prediction = predict_image.eval({keep_prob: 1, tf_image: eval_img.reshape(-1, img_size_all ).astype(np.float32)})
         print(prediction);
+
+
 
 
   else:

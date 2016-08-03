@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <executable>
   <category>PROJECT</category>
-  <title>extractMSLesion</title>
+  <title>msLesionStats</title>
   <version>1.0</version>
   <contributor>Juan Carlos Prieto</contributor>
   <parameters>        
@@ -14,6 +14,12 @@
       <description>Input images with 1 scalar value, all the input images should be in the same space (registered). This filter requires at least one image</description>
     </file>
 
+    <boolean>
+      <name>extractLesion</name>      
+      <longflag>extract</longflag>
+      <description>Extract image with the label</description>
+    </boolean>
+    
     <file>
       <name>labelImageFilename</name>      
       <longflag>labelImg</longflag>
@@ -28,29 +34,11 @@
     </integer>
 
     <integer>
-      <name>labelValueContains</name>
-      <longflag>labelValueContains</longflag>
-      <default>-1</default>
-      <description>Input label value, the region or label set in labelValue must be in proximity to this label</description>
-    </integer>
-
-    <integer>
       <name>numberOfSamples</name>
       <longflag>numberOfSamples</longflag>
       <default>-1</default>
       <description>Set the number of samples to be extracted from the image, -1 for all</description>
     </integer>
-
-    <double>
-      <name>labelValueContainsPercentageMax</name>
-      <longflag>labelValueContainsPercentageMax</longflag>
-      <description>Amount or ration of labelValueContains in the region</description>
-      <default>0.25</default>
-      <constraints>
-        <minimum>0</minimum>
-        <maximum>1</maximum>
-      </constraints>
-    </double>
 
     <integer-vector>
       <name>neighborhood</name>
@@ -58,13 +46,6 @@
       <description>The size of the neighborhood in each dimension</description>
       <label>Neighborhood Size</label>
       <default>3,3,1</default>
-    </integer-vector>
-
-    <integer-vector>
-      <name>index</name>
-      <longflag>--index</longflag>
-      <description>Extract a specific neighborhood using this index</description>
-      <label>Index</label>
     </integer-vector>
     
   </parameters>
@@ -76,19 +57,6 @@
     <file>
       <name>outputImageDirectory</name>      
       <longflag>outDir</longflag>
-    </file>
-
-    <file>
-      <name>outputFileNameIndex</name>     
-      <description>Output FileName used when extracting a single neighborhood from the image</description> 
-      <longflag>outFileNameIndex</longflag>
-      <default>out.nrrd</default>
-    </file>
-
-    <file>
-      <name>outFileNameComposed</name>     
-      <description>Output the composed vector image</description> 
-      <longflag>outFileNameComposed</longflag>
     </file>
 
   </parameters>

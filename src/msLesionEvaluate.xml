@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>PROJECT</category>
+  <title>msLesionEvaluate</title>
+  <version>1.0</version>
+  <contributor>Juan Carlos Prieto</contributor>
+  <parameters>        
+    <label>Input parameters</label>
+    <description>Input parameters</description>
+
+    <file multiple="true">
+      <name>vectorImageFilename</name>      
+      <longflag>img</longflag>
+      <description>Input images with 1 scalar value, all the input images should be in the same space (registered). This filter requires at least one image</description>
+    </file>
+
+    <file>
+      <name>probabilityMap</name>      
+      <longflag>prob</longflag>
+      <description>Input vector image with probability map</description>
+    </file>
+
+    <file>
+      <name>labelMap</name>      
+      <longflag>labelMap</longflag>
+      <description>Label map to perform dice coefficient (ground truth)</description>
+    </file>
+    
+    
+  </parameters>
+
+  <parameters>
+    <label>Ouput parameters</label>
+    <description>Output parameters</description>
+    <file>
+      <name>outputLabelMap</name>      
+      <longflag>out</longflag>
+      <description>Output output label map</description>
+      <default>outlabel.nrrd</default>
+    </file> 
+
+  </parameters>
+</executable>

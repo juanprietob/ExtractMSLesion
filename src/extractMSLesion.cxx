@@ -81,7 +81,7 @@ void writeImage(VectorImageIteratorType* vectorit, VectorImageRadiusType radius,
   	writer->Update();
 }
 
-bool containsLabel(InputIteratorType* init, InputImageIndexType index, int labelValueContains, double labelValueContainsPercentage){
+bool containsLabel(InputIteratorType* init, InputImageIndexType index, int labelValueContains, double labelValueContainsPercentageMax){
 	if(labelValueContains == -1){
 		return true;
 	}
@@ -96,7 +96,8 @@ bool containsLabel(InputIteratorType* init, InputImageIndexType index, int label
 		}
 	}
 	double ratio = ((double)count)/((double)size);
-	return  ratio >= labelValueContainsPercentage;
+	//cout<<count<<","<<size<<","<<ratio<<endl;
+	return  ratio <= labelValueContainsPercentageMax && count > 0;
 }
 
 int main (int argc, char * argv[]){
@@ -104,7 +105,7 @@ int main (int argc, char * argv[]){
 
 	PARSE_ARGS;
 	
-	if(vectorImageFilename.size() == 0 || labelImageFilename.compare("") == 0){
+	if(vectorImageFilename.size() == 0 || (labelImageFilename.compare("") == 0 && index.size() == 0)){
 		cout<<"Type "<<argv[0]<<" --help to find out how to use this program."<<endl;
 		return 1;
 	}
@@ -128,13 +129,24 @@ int main (int argc, char * argv[]){
 
 	composeImageFilter->Update();
 
-	InputImageFileReaderType::Pointer readimage = InputImageFileReaderType::New();
-	readimage->SetFileName(labelImageFilename);
-	readimage->Update();
-
-	InputImageType::Pointer labelimage = readimage->GetOutput();	
-
 	VectorImageType::Pointer vectorimage = composeImageFilter->GetOutput();
+
+	if(outFileNameComposed.compare("") != 0){
+		cout<<"Writing file: "<<outFileNameComposed<<endl;
+		VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
+		writer->SetFileName(outFileNameComposed);
+		writer->SetInput(vectorimage);
+		writer->Update();
+	}
+
+	InputImageType::Pointer labelimage = 0;
+
+	if(labelImageFilename.compare("") != 0){
+		InputImageFileReaderType::Pointer readimage = InputImageFileReaderType::New();
+		readimage->SetFileName(labelImageFilename);
+		readimage->Update();
+		labelimage = readimage->GetOutput();	
+	}	
 
 	VectorImageIteratorType::RadiusType radius;	
 	radius[0] = neighborhood[0];
@@ -154,66 +166,93 @@ int main (int argc, char * argv[]){
 	outputimage->SetVectorLength(vectorImageFilename.size());
 	outputimage->Allocate();
 
-	InputRandomIteratorType randomit(labelimage, labelimage->GetLargestPossibleRegion());
-	randomit.SetNumberOfSamples(labelimage->GetLargestPossibleRegion().GetNumberOfPixels());
-	randomit.GoToBegin();
-
-	InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
-	
-
-	char *uuid = new char[100];	
-
-
 	VectorImageIteratorType vectorit(radius, vectorimage, vectorimage->GetLargestPossibleRegion());
 
-	cout<<"Searching for label: "<<labelValue<<endl;
-	if(labelValueContains != -1){
-		cout<<"The region contains label: "<<labelValueContains<<", ratio: "<<labelValueContainsPercentage<<endl;
-	}	
-	
-	while(!randomit.IsAtEnd() && numberOfSamples){
-		if(randomit.Get() == labelValue && containsLabel(&init, randomit.GetIndex(), labelValueContains, labelValueContainsPercentage)){
-			uuid_t id;
-			uuid_generate(id);
-		  	uuid_unparse(id, uuid);
+	if(index.size() == 0){
 
-		  	numberOfSamples--;
+		InputRandomIteratorType randomit(labelimage, labelimage->GetLargestPossibleRegion());
+		randomit.SetNumberOfSamples(labelimage->GetLargestPossibleRegion().GetNumberOfPixels());
+		randomit.GoToBegin();
 
-		  	string outfilename = outputImageDirectory;
-		  	outfilename.append(string(uuid)).append(".nrrd");
+		InputIteratorType init(radius, labelimage, labelimage->GetLargestPossibleRegion());
 
-		  	// if(vectorimage->GetVectorLength() == 2){
-		  	// 	writeImage<2>(&vectorit, radius, outfilename);
-		  	// }else if(vectorimage->GetVectorLength() == 3){
-		  	// 	writeImage<3>(&vectorit, radius, outfilename);
-		  	// }else{
-		  	// 	throw "Modify the source code here and recompile to use with the appropriate number of components.";
-		  	// }
+		char *uuid = new char[100];	
 
-			VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
-			outit.GoToBegin();
+		cout<<"Searching for label: "<<labelValue<<endl;
+		if(labelValueContains != -1){
+			cout<<"The region contains label: "<<labelValueContains<<", ratiomax: "<<labelValueContainsPercentageMax<<endl;
+		}	
+		
+		while(!randomit.IsAtEnd() && numberOfSamples){
+			if(randomit.Get() == labelValue && containsLabel(&init, randomit.GetIndex(), labelValueContains, labelValueContainsPercentageMax)){
+				uuid_t id;
+				uuid_generate(id);
+			  	uuid_unparse(id, uuid);
 
-			vectorit.SetLocation(randomit.GetIndex());
+			  	numberOfSamples--;
 
-			int i = 0;
-			while(!outit.IsAtEnd()){
-				outit.SetCenterPixel(vectorit.GetPixel(i));				
-				++outit;
-				i++;
+			  	string outfilename = outputImageDirectory;
+			  	outfilename.append(string(uuid)).append(".nrrd");
+
+			  	// if(vectorimage->GetVectorLength() == 2){
+			  	// 	writeImage<2>(&vectorit, radius, outfilename);
+			  	// }else if(vectorimage->GetVectorLength() == 3){
+			  	// 	writeImage<3>(&vectorit, radius, outfilename);
+			  	// }else{
+			  	// 	throw "Modify the source code here and recompile to use with the appropriate number of components.";
+			  	// }
+
+				VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
+				outit.GoToBegin();
+
+				vectorit.SetLocation(randomit.GetIndex());
+
+				int i = 0;
+				while(!outit.IsAtEnd()){
+					outit.SetCenterPixel(vectorit.GetPixel(i));				
+					++outit;
+					i++;
+				}
+
+				cout<<"Writing file: "<<outfilename<<endl;
+				VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
+				writer->SetFileName(outfilename);
+				writer->SetInput(outputimage);
+				writer->Update();			
 			}
-
-			cout<<"Writing file: "<<outfilename<<endl;
-			VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
-			writer->SetFileName(outfilename);
-			writer->SetInput(outputimage);
-			writer->Update();			
+			++init;
+			++vectorit;
+			++randomit;
 		}
-		++init;
-		++vectorit;
-		++randomit;
-	}
 
-	delete[] uuid;
+		delete[] uuid;
+	}else{
+		VectorImageType::IndexType vectorindex;
+		vectorindex[0] = index[0];
+		vectorindex[1] = index[1];
+		vectorindex[2] = index[2];
+
+		vectorit.SetLocation(vectorindex);
+
+		VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
+		outit.GoToBegin();
+
+		int i = 0;
+		while(!outit.IsAtEnd()){
+			outit.SetCenterPixel(vectorit.GetPixel(i));				
+			++outit;
+			i++;
+		}
+
+		cout<<"Writing file: "<<outputFileNameIndex<<endl;
+		VectorImageFileWriterType::Pointer writer = VectorImageFileWriterType::New();
+		writer->SetFileName(outputFileNameIndex);
+		writer->SetInput(outputimage);
+		writer->Update();
+	}
+	
+
+	
 
 
 	return 0;

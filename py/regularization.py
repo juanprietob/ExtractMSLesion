@@ -32,7 +32,7 @@ parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckp
 parser.add_argument('--summary', help='Create a summary of the graph', default=False)
 parser.add_argument('--img', help='Evaluate an image')
 parser.add_argument('--imgLabel', help='Evaluate an image and use label map')
-parser.add_argument('--neighborhood', help='Set the image neighborhood, required when using img', nargs='+', type=int)
+parser.add_argument('--neighborhood', help='Set the image neighborhood, required when using --img', nargs='+', type=int)
 parser.add_argument('--model', help='The deep learning model')
 parser.add_argument('--outImageLabel', help='Output image with probability')
 parser.add_argument('--sample', help='Evaluate a sample image')

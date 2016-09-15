@@ -70,7 +70,7 @@ try:
   sgdc = data['sgdc']
 except Exception as e:
   print(e)
-  sgdc = linear_model.SGDClassifier(n_iter=10000, n_jobs=-1, loss='log')
+  sgdc = linear_model.SGDClassifier(n_iter=100, n_jobs=-1, loss='log')
   sgdc.fit(train_dataset, train_labels)
 
 try:

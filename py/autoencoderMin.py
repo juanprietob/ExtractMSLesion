@@ -41,6 +41,8 @@ test_dataset = data["test_dataset"]
 test_labels = data["test_labels"]
 img_head = data["img_head"]
 img_size = img_head["sizes"]
+img_head_label = data["img_head_label"]
+img_size_label = img_head_label["sizes"]
 
 # Reformat into a TensorFlow-friendly shape:
 # - convolutions need the image data formatted as a cube (width by height by #channels)
@@ -48,20 +50,20 @@ img_size = img_head["sizes"]
 
 # In[ ]:
 
-num_labels = 2
-
 in_depth = img_size[3] #zdim
 in_height = img_size[2] #ydim
 in_width = img_size[1] #xdim
 num_channels = img_size[0] #numchannels
+num_channels_labels = 1
 
 # Reformat into a TensorFlow-friendly shape:
-# - convolutions need the image data formatted as a cube (width by height by #channels)
+# - convolutions need the image data formatted as a cube (depth * width * height * channels)
+# - We know that nrrd format 
 # - labels as float 1-hot encodings.
 
 def reformat(dataset, labels):
-  dataset = dataset.reshape((-1, in_depth, in_height, in_width, num_channels)).astype(np.float32)
-  labels = (np.arange(num_labels) == labels[:,None]).astype(np.float32)
+  dataset = dataset.reshape(tuple([-1]) + tuple(reversed(img_size))).astype(np.float32)
+  labels = labels.reshape(tuple([-1]) + tuple(reversed(img_size_label))).astype(np.float32)
   return dataset, labels
 
 train_dataset, train_labels = reformat(train_dataset, train_labels)
@@ -76,13 +78,11 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 # In[ ]:
 
-batch_size = 256
-patch_size = 16
+batch_size = 16
+patch_size = 8
 depth = 32
 depth2 = 64
-num_hidden = 1024
-
-#[batch, height, width, channels]
+num_hidden = 128
 stride = [1, 1, 1, 1]
 
 def evaluate_accuracy(prediction, labels):
@@ -103,12 +103,24 @@ with graph.as_default():
   def conv3d(x, W):
     return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1], padding='SAME')
 
+  def deconv3d(x, W, outputshape):
+    return tf.nn.conv3d_transpose(x, W, outputshape, strides=[1, 2, 2, 2, 1], padding='SAME')
+
   def max_pool_3d(x):
     return tf.nn.max_pool3d(x, ksize=[1, 2, 2, 2, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
 
+  def max_unpool_3d(x):
+    sh = x.get_shape().as_list()
+    dim = len(sh[1:-1])
+    out = (tf.reshape(x, [-1] + sh[-dim:]))
+    for i in range(dim, 0, -1):
+        out = tf.concat(i, [out, tf.zeros_like(out)])
+    out_size = [-1] + [s * 2 for s in sh[1:-1]] + [sh[-1]]
+    out = tf.reshape(out, out_size)
+    return out
 
-  x = tf.placeholder(tf.float32, shape=(batch_size, in_depth, in_height, in_width, num_channels))
-  y_ = tf.placeholder(tf.float32, shape=[None, num_labels])
+  x = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(reversed(img_size))))
+  y_ = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(reversed(img_size_label))))
   
   tf_valid_dataset = tf.constant(valid_dataset)
   tf_test_dataset = tf.constant(test_dataset)
@@ -117,15 +129,15 @@ with graph.as_default():
 
   W_conv1 = weight_variable([patch_size, patch_size, patch_size, num_channels, depth])
   b_conv1 = bias_variable([depth])
-  
-  W_conv2 = weight_variable([patch_size, patch_size, patch_size, depth, depth2])
-  b_conv2 = bias_variable([depth2])
 
-  W_fc1 = weight_variable([depth2, num_hidden])
+  W_fc1 = weight_variable([patch_size*patch_size*patch_size*depth*8, num_hidden])
   b_fc1 = bias_variable([num_hidden])
   
-  W_fc2 = weight_variable([num_hidden, num_labels])
-  b_fc2 = bias_variable([num_labels])
+  W_fc2 = weight_variable([num_hidden, patch_size*patch_size*patch_size*depth*8])
+  b_fc2 = bias_variable([patch_size*patch_size*patch_size*depth*8])
+
+  W_unconv1 = weight_variable([patch_size, patch_size, patch_size, num_channels_labels, depth])
+  b_unconv1 = bias_variable([num_channels_labels])
   
   # Model.
   def model(x_image):
@@ -134,30 +146,31 @@ with graph.as_default():
     h_conv1 = tf.nn.relu(conv3d(x_image, W_conv1) + b_conv1)
     h_pool1 = max_pool_3d(h_conv1)
 
-    h_conv2 = tf.nn.relu(conv3d(h_pool1, W_conv2) + b_conv2)
-    h_pool2 = max_pool_3d(h_conv2)
-
     #fully connected
-    shape = h_pool2.get_shape().as_list()
-    h_pool2_flat = tf.reshape(h_pool2, [-1, shape[1]*shape[2]*shape[3]*shape[4]])
-    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+    shape = h_pool1.get_shape().as_list()
+    
+    h_pool1 = tf.reshape(h_pool1, [-1, shape[1]*shape[2]*shape[3]*shape[4]])
+    h_fc1 = tf.nn.relu(tf.matmul(h_pool1, W_fc1) + b_fc1)
 
-    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+    #h_fc1 = tf.nn.dropout(h_fc1, keep_prob)
+    h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
+    h_fc2 = tf.reshape(h_fc2, [-1, shape[1], shape[2], shape[3], shape[4]])
+    
+    h_conv3 = tf.nn.relu(deconv3d(h_fc2, W_unconv1, [shape[0], in_width, in_height, in_depth, num_channels_labels]) + b_unconv1)
+    #h_pool1.get_shape().as_list()
 
-    y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
-
-    return y_conv
+    return tf.reshape(h_conv3, [-1, in_width, in_height, in_depth])
   
   y_conv = model(x)
   
-  cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_conv), reduction_indices=[1]))
+  cross_entropy = tf.reduce_mean(y_conv - y_)
 
-  regularizers = tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2)
+  regularizers = tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2) 
   cross_entropy += 0.1 * regularizers
 
   #cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv, y_))
   train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)
-  correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
+  correct_prediction = tf.equal(y_conv, y_)
   accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
   valid_prediction = model(tf_valid_dataset)

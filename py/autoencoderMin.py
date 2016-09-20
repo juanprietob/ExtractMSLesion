@@ -78,7 +78,7 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 # In[ ]:
 
-batch_size = 16
+batch_size = 256
 patch_size = 8
 depth = 32
 depth2 = 64

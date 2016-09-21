@@ -78,11 +78,11 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 # In[ ]:
 
-batch_size = 16
+batch_size = 64
 patch_size = 8
 depth = 32
 depth2 = 64
-num_hidden = 128
+num_hidden = 256
 stride = [1, 1, 1, 1]
 
 def evaluate_accuracy(prediction, labels):
@@ -142,11 +142,11 @@ with graph.as_default():
   W_fc3 = weight_variable([num_hidden, patch_size*patch_size*patch_size*depth2])
   b_fc3 = bias_variable([patch_size*patch_size*patch_size*depth2])
 
-  W_conv3 = weight_variable([patch_size, patch_size, patch_size, depth, depth2])
-  b_conv3 = bias_variable([depth])
+  W_unconv1 = weight_variable([patch_size, patch_size, patch_size, depth, depth2])
+  b_unconv1 = bias_variable([depth])
   
-  W_conv4 = weight_variable([patch_size, patch_size, patch_size, num_channels_labels, depth])
-  b_conv4 = bias_variable([num_channels_labels])
+  W_unconv2 = weight_variable([patch_size, patch_size, patch_size, num_channels_labels, depth])
+  b_unconv2 = bias_variable([num_channels_labels])
   
   # Model.
   def model(x_image):
@@ -172,14 +172,12 @@ with graph.as_default():
     h_fc3_flat = tf.nn.relu(tf.matmul(h_fc2, W_fc3) + b_fc3)
     h_fc3 = tf.reshape(h_fc3_flat, [-1, shape[1], shape[2], shape[3], shape[4]])
     
-    h_conv3 = tf.nn.relu(deconv3d(h_fc3, W_conv3, h_fc3.get_shape().as_list()) + b_conv3)
-    h_pool3 = max_unpool_3d(h_conv3)
+    h_conv3 = tf.nn.relu(deconv3d(h_fc3, W_unconv1, [shape[0], in_width//2, in_height//2, in_depth//2, depth]) + b_unconv1)
     #h_pool1.get_shape().as_list()
-    
-    h_conv4 = tf.nn.relu(deconv3d(h_pool3, W_conv4, h_pool3.get_shape().as_list()) + b_conv4)
-    h_pool4 = max_unpool_3d(h_conv4)
 
-    return tf.reshape(h_pool4, [-1, in_width, in_height, in_depth])
+    h_conv4 = tf.nn.relu(deconv3d(h_conv3, W_unconv2, [shape[0], in_width, in_height, in_depth, num_channels_labels]) + b_unconv2)
+
+    return tf.reshape(h_conv4, [-1, in_width, in_height, in_depth])
   
   y_conv = model(x)
   

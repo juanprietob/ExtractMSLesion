@@ -86,7 +86,9 @@ num_hidden = 128
 stride = [1, 1, 1, 1]
 
 def evaluate_accuracy(prediction, labels):
-  return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1)), tf.float32)).eval()
+  correct_prediction = tf.equal(prediction, labels)
+  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+  return accuracy.eval()
 
 graph = tf.Graph()
 

@@ -20,6 +20,13 @@
       <description>Reference input image</description>
     </file>
 
+    <boolean>
+      <name>compareHeaders</name>
+      <longflag>compare</longflag>
+      <default>0</default>
+      <description>Compare headers of both images and exit with error if they are different. Does not write an output image</description>
+    </boolean>
+
   </parameters>
 
   <parameters>
@@ -29,6 +36,7 @@
     <file>
       <name>outputFilename</name>      
       <longflag>out</longflag>
+      <description>Output filename</description>
     </file>
 
   </parameters>

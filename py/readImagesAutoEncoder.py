@@ -160,8 +160,8 @@ def maybe_randomize(alldataset):
 
 		for i in range(0, validsize):
 			random_index = r[i + trainsize]
-			train_dataset[i] = dataset[random_index]
-			train_labels[i] = dataset_label[random_index]
+			valid_dataset[i] = dataset[random_index]
+			valid_labels[i] = dataset_label[random_index]
 
 		for i in range(0, testsize):
 			random_index = r[i + trainsize + validsize]

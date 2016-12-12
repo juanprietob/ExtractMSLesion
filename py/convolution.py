@@ -77,9 +77,10 @@ print('Test set', test_dataset.shape, test_labels.shape)
 # In[ ]:
 
 batch_size = 256
-patch_size = 16
+filter_size = 3
 depth = 32
 depth2 = 64
+depth3 = 128
 num_hidden = 1024
 
 #[batch, height, width, channels]
@@ -115,11 +116,14 @@ with graph.as_default():
 
   keep_prob = tf.placeholder(tf.float32)
 
-  W_conv1 = weight_variable([patch_size, patch_size, patch_size, num_channels, depth])
+  W_conv1 = weight_variable([filter_size, filter_size, filter_size, num_channels, depth])
   b_conv1 = bias_variable([depth])
   
-  W_conv2 = weight_variable([patch_size, patch_size, patch_size, depth, depth2])
+  W_conv2 = weight_variable([filter_size, filter_size, filter_size, depth, depth2])
   b_conv2 = bias_variable([depth2])
+
+  W_conv3 = weight_variable([filter_size, filter_size, filter_size, depth2, depth3])
+  b_conv3 = bias_variable([depth2])
 
   W_fc1 = weight_variable([depth2, num_hidden])
   b_fc1 = bias_variable([num_hidden])
@@ -137,10 +141,13 @@ with graph.as_default():
     h_conv2 = tf.nn.relu(conv3d(h_pool1, W_conv2) + b_conv2)
     h_pool2 = max_pool_3d(h_conv2)
 
+    h_conv3 = tf.nn.relu(conv3d(h_pool1, W_conv2) + b_conv3)
+    h_pool3 = max_pool_3d(h_conv3)
+
     #fully connected
-    shape = h_pool2.get_shape().as_list()
-    h_pool2_flat = tf.reshape(h_pool2, [-1, shape[1]*shape[2]*shape[3]*shape[4]])
-    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+    shape = h_pool3.get_shape().as_list()
+    h_pool_flat = tf.reshape(h_pool3, [-1, shape[1]*shape[2]*shape[3]*shape[4]])
+    h_fc1 = tf.nn.relu(tf.matmul(h_pool_flat, W_fc1) + b_fc1)
 
     h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 

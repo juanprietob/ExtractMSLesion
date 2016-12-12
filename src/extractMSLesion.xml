@@ -20,6 +20,25 @@
       <description>Label image filename, this paramtere is required</description>
     </file>
 
+    <file>
+      <name>frequencyMapFilename</name>      
+      <longflag>frequencyMap</longflag>
+      <description>Lesion frequency map, to constrain the region where lesions can be extracted</description>
+    </file>
+
+    <integer>
+      <name>frequencyMapTreshold</name>
+      <longflag>frequencyMapTreshold</longflag>
+      <default>20</default>
+      <description>Regions that have 'frequencyMapTreshold' or more lesion occurences are considered to be extracted</description>
+    </integer>
+
+    <file>
+      <name>refImageFilename</name>      
+      <longflag>refImageFilename</longflag>
+      <description>Reference image to extract neighborhood</description>
+    </file>
+
     <integer>
       <name>labelValue</name>
       <longflag>labelValue</longflag>
@@ -57,7 +76,7 @@
       <longflag>--neighborhood</longflag>
       <description>The size of the neighborhood in each dimension</description>
       <label>Neighborhood Size</label>
-      <default>3,3,1</default>
+      <default>5,5,5</default>
     </integer-vector>
 
     <integer-vector>
@@ -79,9 +98,9 @@
     </file>
 
     <file>
-      <name>outputFileNameIndex</name>     
-      <description>Output FileName used when extracting a single neighborhood from the image</description> 
-      <longflag>outFileNameIndex</longflag>
+      <name>outputFileName</name>     
+      <description>Output FileName used when extracting a single neighborhood from the image (must use --index flat or --refImage )</description> 
+      <longflag>outFilename</longflag>
       <default>out.nrrd</default>
     </file>
 

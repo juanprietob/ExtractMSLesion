@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>PROJECT</category>
+  <title>createHistogram</title>
+  <version>1.0</version>
+  <contributor>Juan Carlos Prieto</contributor>
+  <parameters>        
+    <label>Input parameters</label>
+    <description>Input parameters</description>
+
+    <file>
+      <name>inputFilename</name>      
+      <longflag>in</longflag>
+      <description>Input image</description>
+    </file>
+
+    <boolean>
+      <name>nogui</name>
+      <longflag>nogui</longflag>
+    </boolean>
+
+  </parameters>
+
+  <parameters>
+    <label>Ouput parameters</label>
+    <description>Output parameters</description>
+
+    <file>
+      <name>outputFilename</name>      
+      <longflag>out</longflag>
+    </file>
+
+  </parameters>
+</executable>

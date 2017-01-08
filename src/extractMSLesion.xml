@@ -110,5 +110,11 @@
       <longflag>outFileNameComposed</longflag>
     </file>
 
+    <boolean>
+      <name>writeLabel</name>
+      <longflag>writeLabel</longflag>
+      <description>Write the patch of the label image as well, 1 for selected label 0 for the rest</description>
+    </boolean>
+
   </parameters>
 </executable>

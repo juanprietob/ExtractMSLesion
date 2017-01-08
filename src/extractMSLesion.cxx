@@ -199,6 +199,12 @@ int main (int argc, char * argv[]){
 	outputimage->SetDirection(vectorimage->GetDirection());
 	outputimage->Allocate();
 
+	InputImageType::Pointer outputimagelabel = InputImageType::New();
+	outputimagelabel->SetRegions(region);
+	outputimagelabel->SetSpacing(vectorimage->GetSpacing());
+	outputimagelabel->SetDirection(vectorimage->GetDirection());
+	outputimagelabel->Allocate();
+
 	VectorImageIteratorType vectorit(radius, vectorimage, vectorimage->GetLargestPossibleRegion());
 
 	if(refImageFilename.compare("") != 0){
@@ -297,6 +303,9 @@ int main (int argc, char * argv[]){
 					VectorImageIteratorType outit(radius, outputimage, outputimage->GetLargestPossibleRegion());
 					outit.GoToBegin();
 
+					InputIteratorType outitlabel(radius, outputimagelabel, outputimagelabel->GetLargestPossibleRegion());
+					outitlabel.GoToBegin();
+
 					vectorit.SetLocation(randomit.GetIndex());
 					init.SetLocation(randomit.GetIndex());
 
@@ -315,7 +324,10 @@ int main (int argc, char * argv[]){
 					int i = 0;
 					while(!outit.IsAtEnd()){
 						outit.SetCenterPixel(vectorit.GetPixel(i));
+
+						outitlabel.SetCenterPixel(init.GetPixel(i));
 						init.SetPixel(i, 0);//Mark the adjacent voxels as visited and avoid selecting same lesion again
+
 						++outit;
 						i++;
 					}
@@ -325,6 +337,11 @@ int main (int argc, char * argv[]){
 					writer->SetFileName(outfilename);
 					writer->SetInput(outputimage);
 					writer->Update();
+
+					if(writeLabel){
+						string outfilenamelabel = outputImageDirectory;
+				  		outfilenamelabel.append(string(uuid)).append("_label.nrrd");
+					}
 				}
 			}
 			++init;

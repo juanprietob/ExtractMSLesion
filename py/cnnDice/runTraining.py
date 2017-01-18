@@ -24,9 +24,6 @@ import argparse
 
 tf.logging.set_verbosity(tf.logging.DEBUG)
 
-TRAIN_FILE = 'train_images.tfrecords'
-VALIDATION_FILE = 'val_images.tfrecords'
-
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
@@ -45,8 +42,8 @@ parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckp
 
 args = parser.parse_args()
 
-pickle_file = args.pickle
-outvariablesfilename = args.out
+TRAIN_FILE = args.pickle
+MODEL_FILE = args.out
 
 
 def run_training():
@@ -55,10 +52,10 @@ def run_training():
     with tf.Graph().as_default():
 
 # specify the training data file location
-        trainfile = os.path.join(FLAGS.data_dir, TRAIN_FILE)
+        #trainfile = os.path.join(FLAGS.data_dir, TRAIN_FILE)
 
 # read the images and labels
-        train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels, img_size, img_size_labels = nn.inputs_ms(trainfile)
+        train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels, img_size, img_size_labels = nn.inputs_ms(TRAIN_FILE)
         #images, labels = nn.inputs(batch_size=FLAGS.batch_size,
         #                        num_epochs=FLAGS.num_epochs,
         #                        filename=trainfile)
@@ -122,7 +119,7 @@ def run_training():
 # less frequently output checkpoint files.  Used for evaluating the model
                 if step % 1000 == 0:
                     checkpoint_path = os.path.join(FLAGS.checkpoint_dir, 
-                                                     'model.ckpt')
+                                                     MODEL_FILE)
                     saver.save(sess, checkpoint_path, global_step=step)
                 step += 1
 

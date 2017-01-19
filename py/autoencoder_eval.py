@@ -139,14 +139,13 @@ with graph.as_default():
   with tf.Session() as sess:
     sess.run(tf.initialize_all_variables())
     saver = tf.train.Saver()
-    # specify where to write the log files for import to TensorBoard
-    summary_writer = tf.train.SummaryWriter(os.path.dirname(outvariablesfilename), sess.graph)
+    saver.restore(session, model)
 
 
     for i in range(20000):
       offset = (i * batch_size) % (train_labels.shape[0] - batch_size)
-      batch_data = train_dataset[offset:(offset + batch_size), :]
-      batch_labels = train_labels[offset:(offset + batch_size), :]
+      batch_data = valid_dataset[offset:(offset + batch_size), :]
+      batch_labels = valid_labels[offset:(offset + batch_size), :]
 
       _, loss_value, summary = sess.run([train_step, loss, summary_op], feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
       #train_step.run(feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
@@ -154,13 +153,8 @@ with graph.as_default():
       if i%100 == 0:
         
         print("step %d, loss %g"%(i, loss_value))
-        # valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
-        # print("\tvalid accuracy %g"%valid_accuracy)
-        save_path = saver.save(sess, outvariablesfilename)
-        # output some data to the log files for tensorboard
-        summary_writer.add_summary(summary, i)
-        summary_writer.flush()
-        # print("Current model saved in file: %s" % save_path)
+        valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
+        print("\tvalid accuracy %g"%valid_accuracy)        
 
     #test_accuracy = evaluate_accuracy(test_prediction.eval(feed_dict={keep_prob: 1.0}), test_labels)
     #print("test accuracy %g"%test_accuracy)

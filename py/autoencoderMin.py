@@ -24,12 +24,17 @@ import argparse
 import autoencoder_nn as nn
 import os
 
+print("Tensorflow version:", tf.__version__)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.', required=True)
-parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckpt")
-parser.add_argument('--learning_rate', help='Learning rate', default=1e-8)
-parser.add_argument('--decay_rate', help='decay rate', default=0.96)
-parser.add_argument('--decay_steps', help='decay steps', default=100000)
+parser.add_argument('--out', help='Output filename .ckpt file, default=out.ckpt', default="out.ckpt")
+parser.add_argument('--learning_rate', help='Learning rate, default=1e-5', type=float, default=1e-5)
+parser.add_argument('--decay_rate', help='decay rate, default=0.96', type=float, default=0.96)
+parser.add_argument('--decay_steps', help='decay steps, default=10000', type=int, default=10000)
+parser.add_argument('--batch', help='Batch size for evaluation, default=64', type=int, default=64)
+parser.add_argument('--iterations', help='Number of iterations, default=1000', type=int, default=1000)
+parser.add_argument('--reg_constant', help='Regularization constant, default=0.0', type=float, default=0.0)
 
 args = parser.parse_args()
 
@@ -38,6 +43,9 @@ outvariablesfilename = args.out
 learning_rate = args.learning_rate
 decay_rate = args.decay_rate
 decay_steps = args.decay_steps
+batch_size = args.batch
+iterations = args.iterations
+reg_constant = args.reg_constant
 
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
@@ -51,6 +59,7 @@ img_head = data["img_head"]
 img_size = img_head["sizes"]
 img_head_label = data["img_head_label"]
 img_size_label = img_head_label["sizes"]
+
 
 # Reformat into a TensorFlow-friendly shape:
 # - convolutions need the image data formatted as a cube (width by height by #channels)
@@ -77,15 +86,21 @@ def reformat(dataset, labels):
 train_dataset, train_labels = reformat(train_dataset, train_labels)
 valid_dataset, valid_labels = reformat(valid_dataset, valid_labels)
 test_dataset, test_labels = reformat(test_dataset, test_labels)
+
 print('Training set', train_dataset.shape, train_labels.shape)
 print('Validation set', valid_dataset.shape, valid_labels.shape)
 print('Test set', test_dataset.shape, test_labels.shape)
+print('learning_rate', learning_rate)
+print('decay_rate', decay_rate)
+print('decay_steps', decay_steps)
+print('batch_size', batch_size)
+print('iterations', iterations)
 
 # Let's build a small network with two convolutional layers, followed by one fully connected layer. Convolutional networks are more expensive computationally, so we'll limit its depth and number of fully connected nodes.
 
 # In[ ]:
 
-batch_size = 64
+#batch_size = 64
 # patch_size = 8
 # depth = 32
 # depth2 = 64
@@ -108,15 +123,21 @@ with graph.as_default():
   tf_valid_dataset = tf.constant(valid_dataset)
   # tf_test_dataset = tf.constant(test_dataset)
 
-  y_conv = nn.inference(x, img_size, keep_prob, batch_size)
+  y_conv = nn.inference(x, img_size, keep_prob, batch_size, reg_constant)
 
 # calculate the loss from the results of inference and the labels
   loss = nn.loss(y_conv, y_)
 
+  tf.summary.scalar(loss.op.name, loss)
+
 # setup the training operations
   train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
-
   # setup the summary ops to use TensorBoard
+  
+  intersection_sum, label_sum, example_sum, precision = nn.evaluation(y_conv, y_)
+
+  tf.summary.scalar ("Precision op", precision)
+
   summary_op = tf.merge_all_summaries()
 
   # intersection_sum, label_sum, example_sum = evaluation(y_conv, y_)
@@ -137,30 +158,30 @@ with graph.as_default():
   # test_prediction = model(tf_test_dataset)
 
   with tf.Session() as sess:
-    sess.run(tf.initialize_all_variables())
+    sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
     # specify where to write the log files for import to TensorBoard
     summary_writer = tf.train.SummaryWriter(os.path.dirname(outvariablesfilename), sess.graph)
 
 
-    for i in range(20000):
-      offset = (i * batch_size) % (train_labels.shape[0] - batch_size)
+    for step in range(iterations):
+      offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
       batch_data = train_dataset[offset:(offset + batch_size), :]
       batch_labels = train_labels[offset:(offset + batch_size), :]
 
-      _, loss_value, summary = sess.run([train_step, loss, summary_op], feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
-      #train_step.run(feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
+      _, loss_value, prec, summary = sess.run([train_step, loss, precision, summary_op], feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
 
-      if i%100 == 0:
+      if step % 100 == 0:
+        print('OUTPUT: Step %d: loss = %.3f' % (step, loss_value))
+        print('OUTPUT: Dice metric = %.3f' % (prec))
         
-        print("step %d, loss %g"%(i, loss_value))
-        # valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
-        # print("\tvalid accuracy %g"%valid_accuracy)
-        save_path = saver.save(sess, outvariablesfilename)
         # output some data to the log files for tensorboard
-        summary_writer.add_summary(summary, i)
+        summary_writer.add_summary(summary, step)
         summary_writer.flush()
-        # print("Current model saved in file: %s" % save_path)
+
+        # less frequently output checkpoint files.  Used for evaluating the model
+      if step % 1000 == 0:
+        save_path = saver.save(sess, outvariablesfilename, global_step=step)
 
     #test_accuracy = evaluate_accuracy(test_prediction.eval(feed_dict={keep_prob: 1.0}), test_labels)
     #print("test accuracy %g"%test_accuracy)

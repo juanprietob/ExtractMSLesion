@@ -23,21 +23,19 @@ from six.moves import range
 import argparse
 import autoencoder_nn as nn
 import os
+from datetime import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.', required=True)
-parser.add_argument('--out', help='Output filename .ckpt file', default="out.ckpt")
-parser.add_argument('--learning_rate', help='Learning rate', default=1e-8)
-parser.add_argument('--decay_rate', help='decay rate', default=0.96)
-parser.add_argument('--decay_steps', help='decay steps', default=100000)
+parser.add_argument('--model', help='Model file computed with autoencoder_train.py', required=True)
+parser.add_argument('--batch', help='Batch size for evaluation', default=64)
+
 
 args = parser.parse_args()
 
 pickle_file = args.pickle
-outvariablesfilename = args.out
-learning_rate = args.learning_rate
-decay_rate = args.decay_rate
-decay_steps = args.decay_steps
+model = args.model
+batch_size = args.batch
 
 f = open(pickle_file, 'rb')
 data = pickle.load(f)
@@ -85,7 +83,7 @@ print('Test set', test_dataset.shape, test_labels.shape)
 
 # In[ ]:
 
-batch_size = 64
+#batch_size = 64
 # patch_size = 8
 # depth = 32
 # depth2 = 64
@@ -105,59 +103,43 @@ with graph.as_default():
   y_ = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(reversed(img_size_label))))
   keep_prob = tf.placeholder(tf.float32)
 
-  tf_valid_dataset = tf.constant(valid_dataset)
-  # tf_test_dataset = tf.constant(test_dataset)
-
   y_conv = nn.inference(x, img_size, keep_prob, batch_size)
 
-# calculate the loss from the results of inference and the labels
-  loss = nn.loss(y_conv, y_)
-
-# setup the training operations
-  train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
+  intersection_sum, label_sum, example_sum = nn.evaluation(y_conv, y_)
 
   # setup the summary ops to use TensorBoard
   summary_op = tf.merge_all_summaries()
 
-  # intersection_sum, label_sum, example_sum = evaluation(y_conv, y_)
-
-  # valid_prediction = model(tf_valid_dataset)
-  #cross_entropy = tf.reduce_sum(tf.squared_difference(y_conv, y_))
-
-  #regularizers = tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2)
-  #cross_entropy += 0.1 * regularizers
-
-  #cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv, y_))
-  #train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)  
-
-  # accuracy = cross_entropy
-
-  # valid_prediction = model(tf_valid_dataset)
-  # evaluation(valid_prediction)
-  # test_prediction = model(tf_test_dataset)
-
   with tf.Session() as sess:
     sess.run(tf.initialize_all_variables())
     saver = tf.train.Saver()
-    saver.restore(session, model)
+    saver.restore(sess, model)
+    
+    # specify where to write the log files for import to TensorBoard
+    summary_writer = tf.train.SummaryWriter(os.path.dirname(model), sess.graph)
 
+    int_sum = 0
+    l_sum = 0
+    e_sum = 0
 
-    for i in range(20000):
-      offset = (i * batch_size) % (train_labels.shape[0] - batch_size)
+    for step in range(int(len(valid_dataset)/batch_size)):
+
+      offset = (step * batch_size)
       batch_data = valid_dataset[offset:(offset + batch_size), :]
       batch_labels = valid_labels[offset:(offset + batch_size), :]
 
-      _, loss_value, summary = sess.run([train_step, loss, summary_op], feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
-      #train_step.run(feed_dict={x: batch_data, y_: batch_labels, keep_prob: 0.5})
+      ins, ls, es = sess.run([intersection_sum, label_sum, example_sum], feed_dict={x: batch_data, y_: batch_labels, keep_prob: 1})
 
-      if i%100 == 0:
-        
-        print("step %d, loss %g"%(i, loss_value))
-        valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
-        print("\tvalid accuracy %g"%valid_accuracy)        
+      int_sum += ins
+      l_sum += ls
+      e_sum += es
 
-    #test_accuracy = evaluate_accuracy(test_prediction.eval(feed_dict={keep_prob: 1.0}), test_labels)
-    #print("test accuracy %g"%test_accuracy)
-    
-  
-  
+    precision = (2.0 * int_sum) / ( l_sum + e_sum )
+    print('OUTPUT: %s: Dice metric = %.3f' % (datetime.now(), precision))
+
+    # create summary to show in TensorBoard
+    summary = tf.Summary()
+    summary.ParseFromString(sess.run(summary_op))
+    summary.value.add(tag='2Dice metric', simple_value=precision)
+    summary_writer.add_summary(summary, global_step)
+

@@ -17,6 +17,7 @@ parser.add_argument("--trainSize", help="Output training size dataset in percent
 parser.add_argument("--validSize", help="Output validation size dataset in percentage default 0.1 ", default=0.1, type=float)
 parser.add_argument("--testSize", help="Output test size dataset in percentage default 0.1", default=0.1, type=float)
 parser.add_argument("--readLabels", help="Read label images, put in the same directory with sufix *_label.nrrd", default=False, type=bool)
+parser.add_argument("--extractLabel", help="Threshold the labels. readLabels must be enabled as well. If different than -1, the resulting labels will be binary, 1 for the extractLabel, 0 for the rest", default=-1, type=int)
 
 args = parser.parse_args()
 
@@ -27,11 +28,20 @@ train_size = args.trainSize
 valid_size = args.validSize
 test_size = args.testSize
 readLabels = args.readLabels
+extractLabel = args.extractLabel
 
 img_head = None
 img_head_label = None
 img_size = None
 img_size_label = None
+
+def threshold_labels(labels, label):
+    for l in np.nditer(labels, op_flags=['readwrite']):
+        if(l == label):
+            l[...] = 1
+        else:
+            l[...] = 0
+    return labels
 
 def recursive_glob(treeroot, pattern):
 	print ("Reading files from: ", treeroot, pattern)
@@ -54,11 +64,13 @@ def maybe_pickle(rootdir, dirs):
 			with open(set_filename, 'rb') as f:
 				data = pickle.load(f)
 
+			global img_head
 			img_head = data["img_head"]
 			global img_size
 			img_size = img_head["sizes"]
 
 			if(readLabels):
+				global img_head_label
 				img_head_label = data["img_head_label"]
 				global img_size_label
 				img_size_label = img_head_label["sizes"]
@@ -253,7 +265,23 @@ def maybe_randomize(alldataset, outfilename):
 
 		if(readLabels == False):
 			print ("Test labels distribution: ", collections.Counter(test_labels))
+
+
+		if(readLabels and extractLabel != -1):
+			print("Threshold train labels...")
+			train_labels = threshold_labels(train_labels, extractLabel)
+			print("Threshold valid labels...")
+			valid_labels = threshold_labels(valid_labels, extractLabel)
+			print("Threshold test labels...")
+			test_labels = threshold_labels(test_labels, extractLabel)
 		
+
+		print("Sannity checks...")
+		print("Train size (data length, labels length, labels sum): ", len(train_dataset), len(train_labels), sum(train_labels, -1))
+		print("Valid size (data length, labels length, labels sum): ", len(valid_dataset), len(valid_labels), sum(valid_labels, -1))
+		print("Test size (data length, labels length, labels sum): ", len(test_dataset), len(test_labels), sum(test_labels, -1))
+		print("Image head:", img_head)
+		print("Image head:", img_head_label)
 
 		try:
 		  f = open(os.path.join(rootdir, outfilename), 'wb')

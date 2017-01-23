@@ -17,7 +17,7 @@ parser.add_argument("--trainSize", help="Output training size dataset in percent
 parser.add_argument("--validSize", help="Output validation size dataset in percentage default 0.1 ", default=0.1, type=float)
 parser.add_argument("--testSize", help="Output test size dataset in percentage default 0.1", default=0.1, type=float)
 parser.add_argument("--readLabels", help="Read label images, put in the same directory with sufix *_label.nrrd", default=False, type=bool)
-parser.add_argument("--extractLabel", help="Threshold the labels. readLabels must be enabled as well. If different than -1, the resulting labels will be binary, 1 for the extractLabel, 0 for the rest", default=-1, type=int)
+parser.add_argument("--extractLabel", help="Threshold the labels. readLabels must be enabled as well. If different than -1, the resulting labels will be binary, 1 for the extractLabel, 0 for the rest", default=-1, type=int, nargs='+')
 
 args = parser.parse_args()
 
@@ -30,17 +30,19 @@ test_size = args.testSize
 readLabels = args.readLabels
 extractLabel = args.extractLabel
 
+
 img_head = None
 img_head_label = None
 img_size = None
 img_size_label = None
 
-def threshold_labels(labels, label):
+def threshold_labels(labels, extract_label):
     for l in np.nditer(labels, op_flags=['readwrite']):
-        if(l == label):
-            l[...] = 1
-        else:
-            l[...] = 0
+    	for li in range(len(extract_label)):
+	        if(l == extract_label[li]):
+	            l[...] = li
+	        else:
+	            l[...] = 0
     return labels
 
 def recursive_glob(treeroot, pattern):
@@ -63,7 +65,6 @@ def maybe_pickle(rootdir, dirs):
 			
 			with open(set_filename, 'rb') as f:
 				data = pickle.load(f)
-
 			global img_head
 			img_head = data["img_head"]
 			global img_size

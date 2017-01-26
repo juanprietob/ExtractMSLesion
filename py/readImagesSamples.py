@@ -40,7 +40,7 @@ def threshold_labels(labels, extract_label):
     for l in np.nditer(labels, op_flags=['readwrite']):
     	for li in range(len(extract_label)):
 	        if(l == extract_label[li]):
-	            l[...] = li
+	            l[...] = li + 1
 	        else:
 	            l[...] = 0
     return labels
@@ -89,6 +89,7 @@ def maybe_pickle(rootdir, dirs):
 				global img_size_label
 				img_size_label = img_head_label["sizes"]
 
+			f.close()
 		else:
 			print('Pickling %s.' % set_filename)
 
@@ -152,11 +153,6 @@ def maybe_pickle(rootdir, dirs):
 					print('Could not read:', file, '- it\'s ok, skipping.', e)
 					continue
 
-
-				
-
-
-
 			dataset = dataset[0:num_images, :]
 			data["dataset"] = dataset
 
@@ -174,11 +170,6 @@ def maybe_pickle(rootdir, dirs):
 
 	return datasets
 
-print ('Reading samples from:', rootdir)
-dirs = [d for d in os.listdir(rootdir) if os.path.isdir(os.path.join(rootdir, d))]
-
-alldatasets = maybe_pickle(rootdir, dirs)
-
 def make_arrays(nb_rows):
   if nb_rows:
     dataset = np.ndarray(tuple([nb_rows]) + tuple(img_size), dtype=np.float32)
@@ -194,10 +185,6 @@ def maybe_randomize(alldataset, outfilename):
 
 	if(len(alldataset) == 0):
 		raise Exception("No datasets to randomize")
-
-	if os.path.exists(outfilename) and not force:
-		# You may override by setting force=True.
-		print('%s already present - Skipping shuffling.' % outfilename)
 	else:
 
 		print('Shuffling and creating train, valid and test sets')
@@ -293,39 +280,55 @@ def maybe_randomize(alldataset, outfilename):
 			print("Threshold valid labels...")
 			valid_labels = threshold_labels(valid_labels, extractLabel)
 			print("Threshold test labels...")
-			test_labels = threshold_labels(test_labels, extractLabel)
-		
-
-		print("Sannity checks...")
-		print("Train size (data length, labels length, labels sum): ", len(train_dataset), len(train_labels), sum(train_labels, -1))
-		print("Valid size (data length, labels length, labels sum): ", len(valid_dataset), len(valid_labels), sum(valid_labels, -1))
-		print("Test size (data length, labels length, labels sum): ", len(test_dataset), len(test_labels), sum(test_labels, -1))
-		print("Image head:", img_head)
-		print("Image head:", img_head_label)
+			test_labels = threshold_labels(test_labels, extractLabel)		
 
 		try:
-		  f = open(os.path.join(rootdir, outfilename), 'wb')
-		  save = {
-		    'train_dataset': train_dataset,
-		    'train_labels': train_labels,
-		    'valid_dataset': valid_dataset,
-		    'valid_labels': valid_labels,
-		    'test_dataset': test_dataset,
-		    'test_labels': test_labels,
-		    'img_head': img_head,
-		    'img_head_label': img_head_label
+			print("Saving merged datasets:", outfilename)
+			f = open(os.path.join(rootdir, outfilename), 'wb')
+			save = {
+			    'train_dataset': train_dataset,
+			    'train_labels': train_labels,
+			    'valid_dataset': valid_dataset,
+			    'valid_labels': valid_labels,
+			    'test_dataset': test_dataset,
+			    'test_labels': test_labels,
+			    'img_head': img_head,
+			    'img_head_label': img_head_label
 		    }
-		  pickle.dump(save, f)
-		  f.close()
+		  	pickle.dump(save, f)
+		  	f.close()
+		  	sanity_checks(save)
 		except Exception as e:
-		  print('Unable to save data to', outfilename, ':', e)
-		  raise
-	return outfilename
+			print('Unable to save data to', outfilename, ':', e)
+			raise
 
 
-pickle_file = maybe_randomize(alldatasets, outfilename)
+def sanity_checks(dataset):
+	print("Sannity checks...")
+	print("Train size (data length, labels length, labels sum): ", len(dataset["train_dataset"]), len(dataset["train_labels"]), np.sum(dataset["train_labels"]))
+	print("Valid size (data length, labels length, labels sum): ", len(dataset["valid_dataset"]), len(dataset["valid_labels"]), np.sum(dataset["valid_labels"]))
+	print("Test size (data length, labels length, labels sum): ", len(dataset["test_dataset"]), len(dataset["test_labels"]), np.sum(dataset["test_labels"]))
+	print("Image head:", dataset["img_head"])
+	print("Image head:", dataset["img_head_label"])
 
-# In[ ]:
+if os.path.exists(outfilename) and not force:
+	# You may override by setting force=True.
+	print('%s already present - Skipping reading samples and shuffling.' % outfilename)
+	
+	with open(outfilename, 'rb') as f:
+		data = pickle.load(f)
+	sanity_checks(data)
+	f.close()
+else:
 
-statinfo = os.stat(os.path.join(rootdir, pickle_file))
+	print ('Reading samples from:', rootdir)
+	dirs = [d for d in os.listdir(rootdir) if os.path.isdir(os.path.join(rootdir, d))]
+
+	alldatasets = maybe_pickle(rootdir, dirs)
+
+	maybe_randomize(alldatasets, outfilename)
+
+	# In[ ]:
+
+statinfo = os.stat(os.path.join(rootdir, outfilename))
 print('Compressed pickle size:', statinfo.st_size)

@@ -18,7 +18,7 @@ parser.add_argument("--validSize", help="Output validation size dataset in perce
 parser.add_argument("--testSize", help="Output test size dataset in percentage default 0.1", default=0.1, type=float)
 parser.add_argument("--readLabels", help="Read label images, put in the same directory with sufix *_label.nrrd", default=False, type=bool)
 parser.add_argument("--extractLabel", help="Threshold the labels. readLabels must be enabled as well. If different than -1, the resulting labels will be binary, 1 for the extractLabel, 0 for the rest", default=-1, type=int, nargs='+')
-
+parser.add_argument("--sampleFile", help="Instead of recursing a directory tree, provide a txt file with the samples name. Should be located besides each directory class, e.x., If directory name is wm then the file should be wm.txt.", default=False, type=bool)
 args = parser.parse_args()
 
 rootdir = args.dir
@@ -29,7 +29,7 @@ valid_size = args.validSize
 test_size = args.testSize
 readLabels = args.readLabels
 extractLabel = args.extractLabel
-
+sampleFile = args.sampleFile
 
 img_head = None
 img_head_label = None
@@ -50,6 +50,19 @@ def recursive_glob(treeroot, pattern):
 	results = []
 	for base, dirs, files in os.walk(treeroot):
 		results.extend(os.path.join(base, f) for f in fnmatch.filter(files, pattern))
+	return results
+
+def readSampleFile(sampleFile):
+	print ("Reading from sample file: ", sampleFile)
+	results = []
+	
+	try:
+		text_file = open(sampleFile, "r")
+		results = text_file.read().splitlines()
+		text_file.close()
+	except Exception as e:
+		print('Could not read:', sampleFile)
+
 	return results
 
 def maybe_pickle(rootdir, dirs):
@@ -79,7 +92,10 @@ def maybe_pickle(rootdir, dirs):
 		else:
 			print('Pickling %s.' % set_filename)
 
-			image_files = recursive_glob(os.path.join(rootdir, d), "*.nrrd")
+			if(sampleFile):
+				image_files = readSampleFile(os.path.join(rootdir, d + ".txt"))
+			else:
+				image_files = recursive_glob(os.path.join(rootdir, d), "*.nrrd")
 
 			if(len(image_files) > 0):
 				image_data, img_head = nrrd.read(image_files[0])
@@ -108,6 +124,28 @@ def maybe_pickle(rootdir, dirs):
 					image_data, img_head = nrrd.read(file)
 
 					dataset[num_images, :, :, :] = image_data
+
+					if(readLabels):
+
+						try:
+								
+							filelabel = file.replace(".nrrd", "_label.nrrd")
+							
+							print "Reading label file", filelabel
+
+							image_data_label, img_head_label = nrrd.read(filelabel)
+							img_size_label = img_head_label["sizes"]
+
+							if(datasetlabel is None):
+								data["img_head_label"] = img_head_label
+								datasetlabel = np.ndarray(shape=(len(image_files), img_size_label[0], img_size_label[1], img_size_label[2]), dtype=np.float32)
+
+							datasetlabel[num_images, :, :, :] = image_data_label
+
+						except Exception as e:
+							print('Could not read:', filelabel, '- it\'s not ok, removing previous image')
+							num_images -= 1
+
 					num_images += 1
 
 				except Exception as e:
@@ -115,27 +153,8 @@ def maybe_pickle(rootdir, dirs):
 					continue
 
 
-				if(readLabels):
+				
 
-					try:
-							
-						filelabel = file.replace(".nrrd", "_label.nrrd")
-						
-						print "Reading label file", filelabel
-
-						image_data_label, img_head_label = nrrd.read(filelabel)
-						img_size_label = img_head_label["sizes"]
-
-						if(datasetlabel == None):
-							data["img_head_label"] = img_head_label
-							datasetlabel = np.ndarray(shape=(len(image_files), img_size_label[0], img_size_label[1], img_size_label[2]), dtype=np.float32)
-
-						datasetlabel[num_images, :, :, :] = image_data_label
-
-					except Exception as e:
-
-						print('Could not read:', filelabel, '- it\'s not ok, terminating')
-						quit()
 
 
 			dataset = dataset[0:num_images, :]
@@ -296,7 +315,7 @@ def maybe_randomize(alldataset, outfilename):
 		    'img_head': img_head,
 		    'img_head_label': img_head_label
 		    }
-		  pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
+		  pickle.dump(save, f)
 		  f.close()
 		except Exception as e:
 		  print('Unable to save data to', outfilename, ':', e)

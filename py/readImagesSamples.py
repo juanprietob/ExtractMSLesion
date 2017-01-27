@@ -314,24 +314,25 @@ def sanity_checks(dataset):
 
 		head = dataset["img_head"]
 		
-		index_train = random.randint(0, len(dataset["train_dataset"]))
+		index_train = random.randint(0, len(dataset["train_dataset"]) - 1)
 		img = dataset["train_dataset"][index_train]
 		nrrd.write(os.path.join(os.path.dirname(outfilename), "train.nrrd"), img, head)
-		index_label = random.randint(0, len(dataset["valid_dataset"]))
+		index_label = random.randint(0, len(dataset["valid_dataset"]) - 1)
 		img = dataset["valid_dataset"][index_label]
 		nrrd.write(os.path.join(os.path.dirname(outfilename), "valid.nrrd"), img, head)
-		index_test = random.randint(0, len(dataset["test_dataset"]))
+		index_test = random.randint(0, len(dataset["test_dataset"]) - 1)
 		img = dataset["test_dataset"][index_test]
 		nrrd.write(os.path.join(os.path.dirname(outfilename), "test.nrrd"), img, head)
 
 
 		if(readLabels):
+			head_label = dataset["img_head_label"]
 			img_label = dataset["train_labels"][index_train]
-			nrrd.write(os.path.join(os.path.dirname(outfilename), "train_label.nrrd"), img_label, head)
+			nrrd.write(os.path.join(os.path.dirname(outfilename), "train_label.nrrd"), img_label, head_label)
 			img_label = dataset["valid_labels"][index_label]
-			nrrd.write(os.path.join(os.path.dirname(outfilename), "valid_label.nrrd"), img_label, head)
+			nrrd.write(os.path.join(os.path.dirname(outfilename), "valid_label.nrrd"), img_label, head_label)
 			img_label = dataset["test_labels"][index_test]
-			nrrd.write(os.path.join(os.path.dirname(outfilename), "test_label.nrrd"), img_label, head)
+			nrrd.write(os.path.join(os.path.dirname(outfilename), "test_label.nrrd"), img_label, head_label)
 		else:
 			print("The train image corresponds to class", dataset["train_labels"][index_train])
 			print("The valid image corresponds to class", dataset["valid_labels"][index_valid])

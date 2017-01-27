@@ -19,22 +19,22 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
 
 # resize the image tensors to add the number of channels, 1 in this case
 # required to pass the images to various layers upcoming in the graph
-    #print("Image size:", size)#num_channels = size[3], depth = size[2], height = size[1], width = size[0]
+    #print("Image size:", size)#num_channels = size[0], depth = size[1], height = size[2], width = size[3]
     print_tensor_shape(images, "images")
 # Convolution layer
     with tf.name_scope('Conv1'):
 
 # weight variable 4d tensor, first two dims are patch (kernel) size       
 # third dim is number of input channels and fourth dim is output channels
-        W_conv1 = tf.Variable(tf.truncated_normal([3,3,3,size[0],200],stddev=0.1,
+        W_conv1 = tf.Variable(tf.truncated_normal([3,3,1,size[0],256],stddev=0.1,
                      dtype=tf.float32),name='W_conv1')
         print_tensor_shape( W_conv1, 'W_conv1 shape')
 
-        conv1_op = tf.nn.conv3d( images, W_conv1, strides=[1,1,1,1,1], 
+        conv1_op = tf.nn.conv3d( images, W_conv1, strides=[1,2,2,1,1], 
                      padding="SAME", name='conv1_op' )
         print_tensor_shape( conv1_op, 'conv1_op shape')
 
-        W_bias1 = tf.Variable( tf.zeros([1,size[3],size[2],size[1],200], dtype=tf.float32), 
+        W_bias1 = tf.Variable( tf.zeros([1,6,6,11,256], dtype=tf.float32), 
                           name='W_bias1')
         print_tensor_shape( W_bias1, 'W_bias1 shape')
 
@@ -45,22 +45,22 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         print_tensor_shape( relu1_op, 'relu1_op shape')
 
 # Pooling layer
-    with tf.name_scope('Pool1'):
-        pool1_op = tf.nn.max_pool3d(relu1_op, ksize=[1,2,2,2,1],
-                                  strides=[1,2,2,2,1], padding='SAME') 
-        print_tensor_shape( pool1_op, 'pool1_op shape')
+    # with tf.name_scope('Pool1'):
+    #     pool1_op = tf.nn.max_pool3d(relu1_op, ksize=[1,2,2,2,1],
+    #                               strides=[1,2,2,2,1], padding='SAME') 
+    #     print_tensor_shape( pool1_op, 'pool1_op shape')
 
 # Conv layer
     with tf.name_scope('Conv2'):
-        W_conv2 = tf.Variable(tf.truncated_normal([3,3,3,200,400],stddev=0.1,
+        W_conv2 = tf.Variable(tf.truncated_normal([3,3,1,256,512],stddev=0.1,
                      dtype=tf.float32),name='W_conv2')
         print_tensor_shape( W_conv2, 'W_conv2 shape')
 
-        conv2_op = tf.nn.conv3d( pool1_op, W_conv2, strides=[1,1,1,1,1],
+        conv2_op = tf.nn.conv3d( relu1_op, W_conv2, strides=[1,2,2,1,1],
                      padding="SAME", name='conv2_op' )
         print_tensor_shape( conv2_op, 'conv2_op shape')
 
-        W_bias2 = tf.Variable( tf.zeros([1,6,6,6,400], dtype=tf.float32),
+        W_bias2 = tf.Variable( tf.zeros([1,3,3,11,512], dtype=tf.float32),
                           name='W_bias2')
         print_tensor_shape( W_bias2, 'W_bias2 shape')
 
@@ -71,42 +71,42 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         print_tensor_shape( relu2_op, 'relu2_op shape')
 
 # Pooling layer
-    with tf.name_scope('Pool2'):
-        pool2_op = tf.nn.max_pool3d(relu2_op, ksize=[1,2,2,2,1],
-                                  strides=[1,2,2,2,1], padding='SAME')
-        print_tensor_shape( pool2_op, 'pool2_op shape')
+    # with tf.name_scope('Pool2'):
+    #     pool2_op = tf.nn.max_pool3d(relu2_op, ksize=[1,2,2,2,1],
+    #                               strides=[1,2,2,2,1], padding='SAME')
+    #     print_tensor_shape( pool2_op, 'pool2_op shape')
     
 # Conv layer
-    with tf.name_scope('Conv3'):
-        W_conv3 = tf.Variable(tf.truncated_normal([3,3,3,400,600],stddev=0.1,
-                     dtype=tf.float32),name='W_conv3') 
-        print_tensor_shape( W_conv3, 'W_conv3 shape')
+    # with tf.name_scope('Conv3'):
+    #     W_conv3 = tf.Variable(tf.truncated_normal([3,3,3,400,600],stddev=0.1,
+    #                  dtype=tf.float32),name='W_conv3') 
+    #     print_tensor_shape( W_conv3, 'W_conv3 shape')
 
-        conv3_op = tf.nn.conv3d( pool2_op, W_conv3, strides=[1,1,1,1,1],
-                     padding='SAME', name='conv3_op' )
-        print_tensor_shape( conv3_op, 'conv3_op shape')
+    #     conv3_op = tf.nn.conv3d( relu2_op, W_conv3, strides=[1,1,1,1,1],
+    #                  padding='SAME', name='conv3_op' )
+    #     print_tensor_shape( conv3_op, 'conv3_op shape')
 
-        W_bias3 = tf.Variable( tf.zeros([1,3,3,3,600], dtype=tf.float32),
-                          name='W_bias3')
-        print_tensor_shape( W_bias3, 'W_bias3 shape')
+    #     W_bias3 = tf.Variable( tf.zeros([1,11,11,11,600], dtype=tf.float32),
+    #                       name='W_bias3')
+    #     print_tensor_shape( W_bias3, 'W_bias3 shape')
 
-        bias3_op = conv3_op + W_bias3
-        print_tensor_shape( bias3_op, 'bias3_op shape')
+    #     bias3_op = conv3_op + W_bias3
+    #     print_tensor_shape( bias3_op, 'bias3_op shape')
 
-        relu3_op = tf.nn.relu( bias3_op, name='relu3_op' )
-        print_tensor_shape( relu3_op, 'relu3_op shape')
+    #     relu3_op = tf.nn.relu( bias3_op, name='relu3_op' )
+    #     print_tensor_shape( relu3_op, 'relu3_op shape')
     
 # Conv layer
     with tf.name_scope('Conv4'):
-        W_conv4 = tf.Variable(tf.truncated_normal([3,3,3,600,600],stddev=0.1,
+        W_conv4 = tf.Variable(tf.truncated_normal([3,3,1,512,1024],stddev=0.1,
                     dtype=tf.float32), name='W_conv4')
         print_tensor_shape( W_conv4, 'W_conv4 shape')
 
-        conv4_op = tf.nn.conv3d( relu3_op, W_conv4, strides=[1,1,1,1,1],
+        conv4_op = tf.nn.conv3d( relu2_op, W_conv4, strides=[1,1,1,1,1],
                      padding='SAME', name='conv4_op' )
         print_tensor_shape( conv4_op, 'conv4_op shape')
 
-        W_bias4 = tf.Variable( tf.zeros([1,3,3,3,600], dtype=tf.float32),
+        W_bias4 = tf.Variable( tf.zeros([1,3,3,11,1024], dtype=tf.float32),
                           name='W_bias4')
         print_tensor_shape( W_bias4, 'W_bias4 shape')
 
@@ -121,7 +121,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
     
 # Conv layer to generate the 2 score classes
     with tf.name_scope('Score_classes'):
-        W_score_classes = tf.Variable(tf.truncated_normal([1,1,1,600,2],
+        W_score_classes = tf.Variable(tf.truncated_normal([1,1,1,1024,2],
                             stddev=0.1,dtype=tf.float32),name='W_score_classes')
         print_tensor_shape( W_score_classes, 'W_score_classes_shape')
 
@@ -130,7 +130,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
                        name='score_classes_conv_op')
         print_tensor_shape( score_classes_conv_op,'score_conv_op shape')
 
-        W_bias5 = tf.Variable( tf.zeros([1,3,3,3,2], dtype=tf.float32),
+        W_bias5 = tf.Variable( tf.zeros([1,3,3,11,2], dtype=tf.float32),
                           name='W_bias5')
         print_tensor_shape( W_bias5, 'W_bias5 shape')
 
@@ -139,24 +139,24 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
 
 # Upscore the results to 256x256x2 image
     with tf.name_scope('Upscore'):
-        W_upscore = tf.Variable(tf.truncated_normal([7,7,7,2,2],
+        W_upscore = tf.Variable(tf.truncated_normal([8,8,1,2,2],
                               stddev=0.1,dtype=tf.float32),name='W_upscore')
         print_tensor_shape( W_upscore, 'W_upscore shape')
       
         upscore_conv_op = tf.nn.conv3d_transpose( bias5_op, 
                        W_upscore,
-                       output_shape=[batch_size,size[3],size[2],size[1],2],strides=[1,4,4,4,1],
+                       output_shape=[batch_size,size[3],size[2],size[1],2],strides=[1,4,4,1,1],
                        padding='SAME',name='upscore_conv_op')
         print_tensor_shape(upscore_conv_op, 'upscore_conv_op shape')
 
     #Regularization of all the weights in the network for the loss function
-    with tf.name_scope('Regularization'):
-      Reg_constant = tf.constant(regularization_constant)
-      reg_op = tf.nn.l2_loss(W_conv1) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_conv3) + tf.nn.l2_loss(W_conv4) + tf.nn.l2_loss(W_score_classes)
-      reg_op = reg_op*Reg_constant
-      tf.summary.scalar('reg_op', reg_op)
+    # with tf.name_scope('Regularization'):
+    #   Reg_constant = tf.constant(regularization_constant)
+    #   reg_op = tf.nn.l2_loss(W_conv1) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_conv4) + tf.nn.l2_loss(W_score_classes) #+ tf.nn.l2_loss(W_conv3)
+    #   reg_op = reg_op*Reg_constant
+    #   tf.summary.scalar('reg_op', reg_op)
 
-    return upscore_conv_op + reg_op
+    return upscore_conv_op 
 
 def evaluation(logits, labels):
     # input: logits: Logits tensor, float - [batch_size, 11, 11, 11, NUM_CLASSES].

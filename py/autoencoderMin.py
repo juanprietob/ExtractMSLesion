@@ -78,9 +78,10 @@ img_size_label = img_head_label["sizes"]
 # - We know that nrrd format 
 # - labels as float 1-hot encodings.
 
-def reformat(dataset, labels):
-  dataset = dataset.reshape(tuple([-1]) + tuple(reversed(img_size))).astype(np.float32)
-  labels = labels.reshape(tuple([-1]) + tuple(reversed(img_size_label))).astype(np.float32)
+def reformat(dataset, labels):  
+  dataset = np.rollaxis(dataset,1,5)
+  dataset = dataset.astype(np.float32)
+  labels = labels.astype(np.float32)
   return dataset, labels
 
 train_dataset, train_labels = reformat(train_dataset, train_labels)
@@ -130,15 +131,19 @@ with graph.as_default():
 
   tf.summary.scalar(loss.op.name, loss)
 
-# setup the training operations
-  train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
-  # setup the summary ops to use TensorBoard
-  
   intersection_sum, label_sum, example_sum, precision = nn.evaluation(y_conv, y_)
 
   tf.summary.scalar ("Precision op", precision)
 
-  summary_op = tf.merge_all_summaries()
+# setup the training operations
+  #train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
+  # setup the summary ops to use TensorBoard
+
+  # setup the training operations
+  #train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
+  train_step = nn.training(loss, learning_rate, decay_steps, decay_rate)
+
+  summary_op = tf.summary.merge_all()
 
   # intersection_sum, label_sum, example_sum = evaluation(y_conv, y_)
 
@@ -161,7 +166,7 @@ with graph.as_default():
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
     # specify where to write the log files for import to TensorBoard
-    summary_writer = tf.train.SummaryWriter(os.path.dirname(outvariablesfilename), sess.graph)
+    summary_writer = tf.summary.FileWriter(os.path.dirname(outvariablesfilename), sess.graph)
 
 
     for step in range(iterations):

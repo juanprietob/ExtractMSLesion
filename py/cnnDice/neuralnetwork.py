@@ -22,7 +22,7 @@ import math
 import os.path
 import tensorflow as tf
 from six.moves import cPickle as pickle
-from scipy import stats
+import numpy as np
 
 # function to print the tensor shape.  useful for debugging
 
@@ -70,27 +70,24 @@ def read_and_decode(filename_queue):
     return image_re, label_re
 
 def reformat(dataset, labels, dataset_size, labels_size):
-  dataset = dataset.reshape((-1, dataset_size[3], dataset_size[2], dataset_size[1], dataset_size[0])).astype(np.float32)
-  labels = labels.reshape((-1, dataset_size[2], dataset_size[1], dataset_size[0])).astype(np.float32)
+  dataset = tf.reshape( dataset, [-1, dataset_size[3], dataset_size[2], dataset_size[1], dataset_size[0]] )
+  labels = tf.reshape( labels, [-1, labels_size[2], labels_size[1], labels_size[0], 1] )
   return dataset, labels
 
-def threshold_labels(labels, label):
-    labels = stats.threshold(a, threshmin=label, threshmax=label, newval=0)
-    labels = labels/label
-
-def inputs_ms(filename):
+def inputs_ms(batch_size, filename):
     f = open(filename, 'rb')
     data = pickle.load(f)
     train_dataset = data["train_dataset"]
-    train_labels = threshold_labels(data["train_labels"])
-    valid_dataset = data["valid_dataset"]
-    valid_labels = threshold_labels(data["valid_labels"])
-    test_dataset = data["test_dataset"]
-    test_labels = threshold_labels(data["test_labels"])
+    train_labels = data["train_labels"]
+
+    # valid_dataset = data["valid_dataset"]
+    # valid_labels = data["valid_labels"]
+    # test_dataset = data["test_dataset"]
+    # test_labels = data["test_labels"]
     img_head = data["img_head"]
     img_size = img_head["sizes"]
-    img_head_labels = data["img_head_labels"]
-    img_size_labels = img_head_labels["sizes"]
+    img_head_label = data["img_head_label"]
+    img_size_label = img_head_label["sizes"]
 
     # Reformat into a TensorFlow-friendly shape:
     # - convolutions need the image data formatted as a cube (width by height by #channels)
@@ -105,14 +102,9 @@ def inputs_ms(filename):
     in_width = img_size[1] #xdim
     num_channels = img_size[0] #numchannels
 
-    train_dataset, train_labels = reformat(train_dataset, train_labels, img_size, img_size_labels)
-    valid_dataset, valid_labels = reformat(valid_dataset, valid_labels, img_size, img_size_labels)
-    test_dataset, test_labels = reformat(test_dataset, test_labels, img_size, img_size_labels)
-    print('Training set', train_dataset.shape, train_labels.shape)
-    print('Validation set', valid_dataset.shape, valid_labels.shape)
-    print('Test set', test_dataset.shape, test_labels.shape)
+    train_dataset, train_labels = reformat(train_dataset, train_labels, img_size, img_size_label)
 
-    return train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels, img_size, img_size_labels
+    return train_dataset, train_labels, img_size, img_size_label
 
 
 def inputs(batch_size, num_epochs, filename):
@@ -256,24 +248,20 @@ def inference_ms(images, size):
 #   input: tensor of images
 #   output: tensor of computed logits
 
-    images_re = images#The images have been already reshaped
-    print_tensor_shape( images_re, 'images shape inference' )
-
 # resize the image tensors to add the number of channels, 1 in this case
 # required to pass the images to various layers upcoming in the graph
-    #images_re = tf.reshape( images, [-1,256,256,1] ) 
-    #print_tensor_shape( images, 'images shape inference' )
-    
+    print("Image size:", size)#num_channels = size[3], depth = size[2], height = size[1], width = size[0]
+    print_tensor_shape(images, "images")
 # Convolution layer
     with tf.name_scope('Conv1'):
 
 # weight variable 4d tensor, first two dims are patch (kernel) size       
 # third dim is number of input channels and fourth dim is output channels
-        W_conv1 = tf.Variable(tf.truncated_normal([3,3,3,size[3],100],stddev=0.1,
+        W_conv1 = tf.Variable(tf.truncated_normal([3,3,3,size[0],100],stddev=0.1,
                      dtype=tf.float32),name='W_conv1')
         print_tensor_shape( W_conv1, 'W_conv1 shape')
 
-        conv1_op = tf.nn.conv3d( images_re, W_conv1, strides=[1,2,2,2,1], 
+        conv1_op = tf.nn.conv3d( images, W_conv1, strides=[1,2,2,2,1], 
                      padding="SAME", name='conv1_op' )
         print_tensor_shape( conv1_op, 'conv1_op shape')
 

@@ -18,7 +18,6 @@ import time
 import os.path
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 import neuralnetwork as nn
 import argparse
 
@@ -29,8 +28,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_float('decay_rate', 1.0, 'Learning rate decay.')
 flags.DEFINE_integer('decay_steps', 1000, 'Steps at each learning rate.')
-flags.DEFINE_integer('num_epochs', 1, 'Number of epochs to run trainer.')
-flags.DEFINE_integer('batch_size', 1, 'Batch size.')
+flags.DEFINE_integer('num_epochs', 10, 'Number of epochs to run trainer.')
+flags.DEFINE_integer('batch_size', 32, 'Batch size.')
 flags.DEFINE_string('data_dir', '/tmp/sunny_data',
                     'Directory with the training data.')
 flags.DEFINE_string('checkpoint_dir', '/tmp/sunny_train',
@@ -55,7 +54,7 @@ def run_training():
         #trainfile = os.path.join(FLAGS.data_dir, TRAIN_FILE)
 
 # read the images and labels
-        train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels, img_size, img_size_labels = nn.inputs_ms(TRAIN_FILE)
+        train_dataset, train_labels, img_size, img_size_labels = nn.inputs_ms(batch_size=FLAGS.batch_size, filename=TRAIN_FILE)
         #images, labels = nn.inputs(batch_size=FLAGS.batch_size,
         #                        num_epochs=FLAGS.num_epochs,
         #                        filename=trainfile)

@@ -12,24 +12,24 @@ from six.moves import cPickle as pickle
 parser = argparse.ArgumentParser(description='Finds images in directory <dir> with extension .nrrd to create the input and output for trainning a deep learning network. Image named *_label.nrrd are ignored')
 parser.add_argument('--dir', help='Input directory', required=True)
 parser.add_argument('--out', help='Output filename for pickle file', default="out.pickle")
-parser.add_argument("--force", help="Force pickle file generation")
 parser.add_argument("--trainSize", help="Output training size dataset in percentage default 0.8 ", default=0.8, type=float)
 parser.add_argument("--validSize", help="Output validation size dataset in percentage default 0.1 ", default=0.1, type=float)
 parser.add_argument("--testSize", help="Output test size dataset in percentage default 0.1", default=0.1, type=float)
 parser.add_argument("--readLabels", help="Read label images, put in the same directory with sufix *_label.nrrd", default=False, type=bool)
 parser.add_argument("--extractLabel", help="Threshold the labels. readLabels must be enabled as well. If different than -1, the resulting labels will be binary, 1 for the extractLabel, 0 for the rest", default=-1, type=int, nargs='+')
 parser.add_argument("--sampleFile", help="Instead of recursing a directory tree, provide a txt file with the samples name. Should be located besides each directory class, e.x., If directory name is wm then the file should be wm.txt.", default=False, type=bool)
+parser.add_argument("--writeRandomImage", help="While performing the sanity checks if set to True, it will write random images from train, valid and test datasets", default=False, type=bool)
 args = parser.parse_args()
 
 rootdir = args.dir
 outfilename = args.out
-force = args.force
 train_size = args.trainSize
 valid_size = args.validSize
 test_size = args.testSize
 readLabels = args.readLabels
 extractLabel = args.extractLabel
 sampleFile = args.sampleFile
+writeRandomImage = args.writeRandomImage
 
 img_head = None
 img_head_label = None
@@ -72,8 +72,8 @@ def maybe_pickle(rootdir, dirs):
 
 		set_filename = os.path.join(rootdir, d + '.pickle')
 
-		if os.path.exists(set_filename) and not force:
-			# You may override by setting force=True.
+		if os.path.exists(set_filename):
+			
 			print('%s already present - Skipping pickling.' % set_filename)
 			
 			with open(set_filename, 'rb') as f:
@@ -162,7 +162,7 @@ def maybe_pickle(rootdir, dirs):
 
 			try:
 				with open(set_filename, 'wb') as f:
-					pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+					pickle.dump(data, f)
 			except Exception as e:
 				print('Unable to save data to', set_filename, ':', e)
 
@@ -311,8 +311,36 @@ def sanity_checks(dataset):
 	print("Image head:", dataset["img_head"])
 	print("Image head:", dataset["img_head_label"])
 
-if os.path.exists(outfilename) and not force:
-	# You may override by setting force=True.
+	if writeRandomImage:
+
+		head = dataset["img_head"]
+		
+		index_train = random.randint(0, len(dataset["train_dataset"]))
+		img = dataset["train_dataset"][index_train]
+		nrrd.write(path.join(path.dirname(outfilename), "train.nrrd"), img, head)
+		index_label = random.randint(0, len(dataset["valid_dataset"]))
+		img = dataset["valid_dataset"][index_label]
+		nrrd.write(path.join(path.dirname(outfilename), "valid.nrrd"), img, head)
+		index_test = random.randint(0, len(dataset["test_dataset"]))
+		img = dataset["test_dataset"][index_test]
+		nrrd.write(path.join(path.dirname(outfilename), "test.nrrd"), img, head)
+
+
+		if(readLabels):
+			img_label = dataset["train_labels"][index_train]
+			nrrd.write(path.join(path.dirname(outfilename), "train_label.nrrd"), img_label, head)
+			img_label = dataset["valid_labels"][index_label]
+			nrrd.write(path.join(path.dirname(outfilename), "valid_label.nrrd"), img_label, head)
+			img_label = dataset["test_labels"][index_test]
+			nrrd.write(path.join(path.dirname(outfilename), "test_label.nrrd"), img_label, head)
+		else:
+			print("The train image corresponds to class", dataset["train_labels"][index_train])
+			print("The valid image corresponds to class", dataset["valid_labels"][index_valid])
+			print("The test image corresponds to class", dataset["test_labels"][index_test])
+
+
+
+if os.path.exists(outfilename):
 	print('%s already present - Skipping reading samples and shuffling.' % outfilename)
 	
 	with open(outfilename, 'rb') as f:

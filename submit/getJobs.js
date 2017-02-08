@@ -21,6 +21,7 @@ if(argv["help"] || argv["h"]){
     console.error("--dir  Output directory");
     console.error("--status  one of [DONE, RUN, FAIL, EXIT, UPLOADING, CREATE]");
     console.error("--j job id");
+    console.error("--executable executable");
     process.exit(1);
 }
 
@@ -28,6 +29,8 @@ var outputdir = "./out";
 if(argv["dir"]){
     outputdir = argv["dir"];
 }
+
+
 var status = argv["status"];
 var jobid = argv["j"];
 var executable;
@@ -56,18 +59,30 @@ clusterpost.userLogin(conf.user)
             return clusterpost.getJobs(executable, "DONE")
             .then(function(jobs){
                 return Promise.map(jobs, function(job){
-                    return clusterpost.getJobOutputs(job, path.join(outputdir, job._id))
-                    .then(function(){
-                        return clusterpost.deleteJob(job._id);
-                    });
-                }, {
-                    concurrency: 2
+                    if(job.outputdir){
+                        return clusterpost.getJobOutputs(job, job.outputdir)
+                        .then(function(){
+                            return clusterpost.deleteJob(job._id);
+                        });
+                    }else{
+                        return clusterpost.getJobOutputs(job, path.join(outputdir, job._id))
+                        .then(function(){
+                            return clusterpost.deleteJob(job._id);
+                        });
+                    }
+                },
+                {
+                    concurrency: 1
                 });
             });
         }else{
             return clusterpost.getDocument(jobid)
             .then(function(job){
-                return clusterpost.getJobOutputs(job, path.join(outputdir, jobid))
+                if(job.outputdir){
+                    return clusterpost.getJobOutputs(job, path.join(job.outputdir, jobid));
+                }else{
+                    return clusterpost.getJobOutputs(job, path.join(outputdir, jobid));
+                }
             })
             .then(function(){
                 return clusterpost.deleteJob(jobid);

@@ -62,13 +62,14 @@ num_channels_labels = 1
 # - labels as float 1-hot encodings.
 
 def reformat(dataset, labels):
-  dataset = dataset.reshape(tuple([-1]) + tuple(reversed(img_size))).astype(np.float32)
+  dataset = dataset.reshape(tuple([-1]) + tuple(reversed(img_size))).astype(np.float32)  
   labels = labels.reshape(tuple([-1]) + tuple(reversed(img_size_label))).astype(np.float32)
   return dataset, labels
 
 train_dataset, train_labels = reformat(train_dataset, train_labels)
 valid_dataset, valid_labels = reformat(valid_dataset, valid_labels)
 test_dataset, test_labels = reformat(test_dataset, test_labels)
+
 print('Training set', train_dataset.shape, train_labels.shape)
 print('Validation set', valid_dataset.shape, valid_labels.shape)
 print('Test set', test_dataset.shape, test_labels.shape)
@@ -86,8 +87,7 @@ num_hidden = 256
 stride = [1, 1, 1, 1]
 
 def evaluate_accuracy(prediction, labels):
-  correct_prediction = tf.equal(prediction, labels)
-  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+  accuracy = tf.reduce_sum(tf.sub(tf.exp(tf.abs(prediction - labels)), - 1))
   return accuracy.eval()
 
 graph = tf.Graph()
@@ -183,15 +183,13 @@ with graph.as_default():
   
   y_conv = model(x)
   
-  cross_entropy = tf.reduce_mean(y_conv - y_)
+  accuracy = tf.reduce_sum(tf.equal(y_conv - y_)))
 
   regularizers = tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2) 
-  cross_entropy += 0.1 * regularizers
+  cross_entropy = accuracy + 0 * regularizers
 
   #cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv, y_))
-  train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)
-  correct_prediction = tf.equal(y_conv, y_)
-  accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+  train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)  
 
   valid_prediction = model(tf_valid_dataset)
   test_prediction = model(tf_test_dataset)
@@ -204,7 +202,7 @@ with graph.as_default():
       batch_data = train_dataset[offset:(offset + batch_size), :]
       batch_labels = train_labels[offset:(offset + batch_size), :]
       if i%100 == 0:
-        train_accuracy = accuracy.eval(feed_dict={x:batch_data, y_: batch_labels, keep_prob: 1.0})
+        train_accuracy = accuracy.eval(feed_dict={x:batch_data, y_: batch_labels, keep_prob: 1.0})        
         print("step %d, training accuracy %g"%(i, train_accuracy))
         valid_accuracy = evaluate_accuracy(valid_prediction.eval(feed_dict={keep_prob: 1.0}), valid_labels)
         print("\tvalid accuracy %g"%valid_accuracy)

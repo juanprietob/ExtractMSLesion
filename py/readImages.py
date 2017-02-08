@@ -19,6 +19,7 @@ force = args.force
 train_size = args.trainSize
 valid_size = args.validSize
 test_size = args.testSize
+
 img_head = None
 img_size = None
 
@@ -50,6 +51,9 @@ def maybe_pickle(currentdir, dirs, force):
 			num_images = 0
 
 			for file in image_files:
+				if(file.find("_label.nrrd") != -1):
+					continue:
+
 				print(file)
 
 				try:
@@ -61,6 +65,7 @@ def maybe_pickle(currentdir, dirs, force):
 
 				except Exception as e:
 					print('Could not read:', file, '- it\'s ok, skipping.', e)
+
 
 			dataset = dataset[0:num_images, :, :]
 			data["dataset"] = dataset

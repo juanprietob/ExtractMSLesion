@@ -19,12 +19,34 @@ const getConfigFile = function (env, base_directory) {
   }
 };
 
+var env = process.env.NODE_ENV;
+if(!env) throw "Please set NODE_ENV variable.";
+
+var conf = getConfigFile(env, process.cwd());
+
 var parameters = [];
 var inputs = [];
+
+
 parameters.push({
     "flag": "",
     "name": String(argv._[0])
 });
+
+var addJobInputs = function(jobinput){
+    var jobin = path.basename(jobinput);
+
+    if(jobinput[0] == "/"){
+        jobinput = jobinput.slice(1);//remove the slash at the start
+    }
+
+    inputs.push({
+        "name": jobin,
+        "remote" : {
+            "uri" : conf.remotefs + jobinput
+        }
+    });
+}
 
 try{
     var m = argv["m"];
@@ -64,7 +86,7 @@ try{
                 "name": mm
             });
 
-            var url = "http://localhost:8180/dataprovider-fs/";
+            var url = conf.remotefs;
 
             var input = _.find(inputs, function(input){
                 if(url + fixedimagepath === input.remote.uri){
@@ -74,6 +96,9 @@ try{
             });
 
             if(!input){
+                if(fixedimagepath[0] == "/"){
+                    fixedimagepath = fixedimagepath.slice(1);//remove the slash at the start
+                }
                 inputs.push({
                     "name": fixedimagefilename,
                     "remote" : {
@@ -90,6 +115,9 @@ try{
             });
             
             if(!input){
+                if(movingimagepath[0] == "/"){
+                    movingimagepath = movingimagepath.slice(1);//remove the slash at the start
+                }
                 inputs.push({
                     "name": movingimagefilename,
                     "remote" : {
@@ -117,33 +145,17 @@ try{
 var x = argv["x"];
 
 if(x){
+    addJobInputs(x);
+
     var xx = path.basename(x);
 
     parameters.push({
         "flag": "-x",
         "name": xx
     });
-
-    inputs.push({
-        "name": xx,
-        "remote" : {
-            "uri" : "http://localhost:8180/dataprovider-fs/" + x
-        }
-    });
 }
 
 var jobinputs = argv["jobinputs"];
-
-var addJobInputs = function(jobinput){
-    var jobin = path.basename(jobinput);
-
-    inputs.push({
-        "name": jobin,
-        "remote" : {
-            "uri" : "http://localhost:8180/dataprovider-fs/" + jobinput
-        }
-    });
-}
 
 if(jobinputs){
     if(_.isArray(jobinputs)){
@@ -200,11 +212,6 @@ if(!outputdir){
 }
 
 var jobname = argv["jobname"];
-
-var env = process.env.NODE_ENV;
-if(!env) throw "Please set NODE_ENV variable.";
-
-var conf = getConfigFile(env, process.cwd());
 
 var getcsvfile = function(filename){
   return new Promise(function(resolve, reject){

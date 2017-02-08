@@ -28,7 +28,7 @@ print("Tensorflow version:", tf.__version__)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle', help='Pickle file, check the script readImages to generate this file.', required=True)
-parser.add_argument('--out', help='Output filename .ckpt file, default=out.ckpt', default="out.ckpt")
+parser.add_argument('--out', help='Output filename, default=./model, the output name will be ./model-<num iterations>', default="./model")
 parser.add_argument('--learning_rate', help='Learning rate, default=1e-5', type=float, default=1e-5)
 parser.add_argument('--decay_rate', help='decay rate, default=0.96', type=float, default=0.96)
 parser.add_argument('--decay_steps', help='decay steps, default=10000', type=int, default=10000)
@@ -57,6 +57,7 @@ test_dataset = data["test_dataset"]
 test_labels = data["test_labels"]
 img_head = data["img_head"]
 img_size = img_head["sizes"]
+img_size = [img_size[3], img_size[2], img_size[1], img_size[0]]
 img_head_label = data["img_head_label"]
 img_size_label = img_head_label["sizes"]
 
@@ -117,8 +118,8 @@ graph = tf.Graph()
 with graph.as_default():
 
 # run inference on the input data
-  x = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(reversed(img_size))))
-  y_ = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(reversed(img_size_label))))
+  x = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(img_size)))
+  y_ = tf.placeholder(tf.float32, shape=(tuple([batch_size]) + tuple(img_size_label)))
   keep_prob = tf.placeholder(tf.float32)
 
   tf_valid_dataset = tf.constant(valid_dataset)
@@ -187,6 +188,8 @@ with graph.as_default():
         # less frequently output checkpoint files.  Used for evaluating the model
       if step % 1000 == 0:
         save_path = saver.save(sess, outvariablesfilename, global_step=step)
+
+    saver.save(sess, outvariablesfilename, global_step=step)
 
     #test_accuracy = evaluate_accuracy(test_prediction.eval(feed_dict={keep_prob: 1.0}), test_labels)
     #print("test accuracy %g"%test_accuracy)

@@ -19,14 +19,15 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
 
 # resize the image tensors to add the number of channels, 1 in this case
 # required to pass the images to various layers upcoming in the graph
-    #print("Image size:", size)#num_channels = size[0], depth = size[1], height = size[2], width = size[3]
+    #print("Image size:", size)
+    #num_channels = size[0], depth = size[0], height = size[1], width = size[2], num_channels = size[3]
     print_tensor_shape(images, "images")
 # Convolution layer
     with tf.name_scope('Conv1'):
 
 # weight variable 4d tensor, first two dims are patch (kernel) size       
 # third dim is number of input channels and fourth dim is output channels
-        W_conv1 = tf.Variable(tf.truncated_normal([3,3,1,size[0],256],stddev=0.1,
+        W_conv1 = tf.Variable(tf.truncated_normal([3,3,1,size[3],256],stddev=0.1,
                      dtype=tf.float32),name='W_conv1')
         print_tensor_shape( W_conv1, 'W_conv1 shape')
 
@@ -145,7 +146,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
       
         upscore_conv_op = tf.nn.conv3d_transpose( bias5_op, 
                        W_upscore,
-                       output_shape=[batch_size,size[3],size[2],size[1],2],strides=[1,4,4,1,1],
+                       output_shape=[batch_size,size[0],size[1],size[2],2],strides=[1,4,4,1,1],
                        padding='SAME',name='upscore_conv_op')
         print_tensor_shape(upscore_conv_op, 'upscore_conv_op shape')
 

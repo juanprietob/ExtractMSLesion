@@ -170,7 +170,7 @@ if(!outname){
     console.error("Please check ants documentation for parameter '-o'");
     process.exit(1);
 }
-//Parse all the rest of parameters that are not specific to ANTS
+//Parse all the rest of parameters that are specific to ANTS
 _.each(argv, function(val, key){
     if(key !== "x" && key !== "m" && key !== "_" && key !== "outputdir" && key !== "jobname" && key !== "jobparameters" && key !== "$0" && key !== "useremail" && key !== "executionserver"){
         var flag = "-";
@@ -242,7 +242,10 @@ try{
     clusterpost.setUserToken(token);
     prom = Promise.resolve(token);
 }catch(e){
-    prom = clusterpost.userLogin(conf.user)
+
+    prom = clusterpost.getUsernamePassword(function(user){
+        return clusterpost.userLogin(user);
+    })
     .then(function(token){
         fs.writeFileSync(".token", token.token);
         return token;

@@ -27,7 +27,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
 
 # weight variable 4d tensor, first two dims are patch (kernel) size       
 # third dim is number of input channels and fourth dim is output channels
-        W_conv1 = tf.Variable(tf.truncated_normal([5,5,5,size[3],256],stddev=0.1,
+        W_conv1 = tf.Variable(tf.truncated_normal([7,7,7,size[3],256],stddev=0.1,
                      dtype=tf.float32),name='W_conv1')
         print_tensor_shape( W_conv1, 'W_conv1 shape')
 
@@ -42,7 +42,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias1_op = conv1_op + W_bias1
         print_tensor_shape( bias1_op, 'bias1_op shape')
 
-        relu1_op = tf.nn.relu( bias1_op, name='relu1_op' )
+        relu1_op = tf.nn.crelu( bias1_op, name='relu1_op' )
         print_tensor_shape( relu1_op, 'relu1_op shape')
 
     with tf.name_scope('Pool1'):
@@ -69,7 +69,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias2_op = conv2_op + W_bias2
         print_tensor_shape( bias2_op, 'bias2_op shape')
 
-        relu2_op = tf.nn.relu( bias2_op, name='relu2_op' )
+        relu2_op = tf.nn.crelu( bias2_op, name='relu2_op' )
         print_tensor_shape( relu2_op, 'relu2_op before shape')
 
     with tf.name_scope('Pool2'):
@@ -99,7 +99,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias_matmul1_op = matmul1_op + W_bias_matmul1
         print_tensor_shape( bias_matmul1_op, 'bias_matmul1_op shape')
 
-        relu_matmul1_op = tf.nn.relu( bias_matmul1_op, name='relu1_op' )
+        relu_matmul1_op = tf.nn.crelu( bias_matmul1_op, name='relu1_op' )
         print_tensor_shape( relu_matmul1_op, 'relu1_op shape')
 
     with tf.name_scope('Matmul2'):
@@ -120,7 +120,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias_matmul2_op = matmul2_op + W_bias_matmul2
         print_tensor_shape( bias_matmul2_op, 'bias_matmul2_op shape')
 
-        relu_matmul2_op = tf.nn.relu( bias_matmul2_op, name='relu1_op' )
+        relu_matmul2_op = tf.nn.crelu( bias_matmul2_op, name='relu1_op' )
         print_tensor_shape( relu_matmul2_op, 'relu_matmul2_op shape')
 
     with tf.name_scope('Matmul3'):
@@ -141,7 +141,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias3_op = matmul3_op + W_bias3
         print_tensor_shape( bias3_op, 'bias3_op shape')
 
-        relu3_op = tf.nn.relu( bias3_op, name='relu1_op' )
+        relu3_op = tf.nn.crelu( bias3_op, name='relu1_op' )
         print_tensor_shape( relu3_op, 'relu3_op shape')
 
     with tf.name_scope('Matmul4'):
@@ -162,7 +162,7 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
         bias4_op = matmul4_op + W_bias4
         print_tensor_shape( bias4_op, 'bias4_op shape')
 
-        relu4_op = tf.nn.relu( bias4_op, name='relu1_op' )
+        relu4_op = tf.nn.crelu( bias4_op, name='relu1_op' )
         print_tensor_shape( relu4_op, 'relu4_op shape')
 
         drop_op = tf.nn.dropout( relu4_op, keep_prob )
@@ -186,22 +186,19 @@ def inference(images, size, keep_prob=1, batch_size=1, regularization_constant=0
 
 
     #Regularization of all the weights in the network for the loss function
-    # with tf.name_scope('Regularization'):
-    #   Reg_constant = tf.constant(regularization_constant)
-    #   reg_op = tf.nn.l2_loss(W_matmul1) + tf.nn.l2_loss(W_matmul2)  + tf.nn.l2_loss(W_matmul3) + tf.nn.l2_loss(W_matmul4) + tf.nn.l2_loss(W_matmul5)
-    #   reg_op = reg_op*Reg_constant
-    #   tf.summary.scalar('reg_op', reg_op)
+    with tf.name_scope('Regularization'):
+      Reg_constant = tf.constant(regularization_constant)
+      reg_op = tf.nn.l2_loss(W_conv1) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_matmul1) + tf.nn.l2_loss(W_matmul2)  + tf.nn.l2_loss(W_matmul3) + tf.nn.l2_loss(W_matmul4) + tf.nn.l2_loss(W_matmul5)
+      reg_op = reg_op*Reg_constant
 
-    # return bias5_op + reg_op
-
-    return bias5_op
+    return bias5_op + reg_op
 
 def evaluation(logits, labels):
-    #return tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits,1), tf.argmax(labels,1)), tf.float32))
-    values, indices = tf.nn.top_k(labels, 1);
-    correct = tf.reshape(tf.nn.in_top_k(logits, tf.cast(tf.reshape( indices, [-1 ] ), tf.int32), 1), [-1] )
-    print_tensor_shape( correct, 'correct shape')
-    return tf.reduce_mean(tf.cast(correct, tf.float32), name='accuracy')
+    with tf.name_scope('Accuracy'):
+        values, indices = tf.nn.top_k(labels, 1);
+        correct = tf.reshape(tf.nn.in_top_k(logits, tf.cast(tf.reshape( indices, [-1 ] ), tf.int32), 1), [-1] )
+        print_tensor_shape( correct, 'correct shape')
+        return tf.reduce_mean(tf.cast(correct, tf.float32), name='accuracy')
 
 def training(loss, learning_rate, decay_steps, decay_rate):
     # input: loss: loss tensor from loss()

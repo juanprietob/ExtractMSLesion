@@ -153,6 +153,11 @@ with graph.as_default():
   # accuracy_eval = nn.evaluation(y_conv, y_)
   # tf.summary.scalar(accuracy_eval.op.name, accuracy_eval)
 
+
+  accuracy = nn.evaluation(y_conv, y_)
+  
+  tf.summary.scalar(accuracy.op.name, accuracy)
+
   summary_op = tf.summary.merge_all()
 
   # intersection_sum, label_sum, example_sum = evaluation(y_conv, y_)

@@ -228,6 +228,16 @@ var getcsvfile = function(filename){
   })
 }
 
+var userLogin = function(){
+    return clusterpost.getUsernamePassword(function(user){
+        return clusterpost.userLogin(user)
+        .then(function(token){
+            fs.writeFileSync(".token", JSON.stringify(token));
+            return user;
+        });;
+    });
+}
+
 clusterpost.setClusterPostServer(conf.uri);
 
 var agentoptions = {
@@ -238,93 +248,104 @@ clusterpost.setAgentOptions(agentoptions);
 
 var prom;
 try{
-    var token = fs.readFileSync(".token");
+    var token = JSON.parse(fs.readFileSync(".token"));
     clusterpost.setUserToken(token);
-    prom = Promise.resolve(token);
-}catch(e){
-
-    prom = clusterpost.getUsernamePassword(function(user){
-        return clusterpost.userLogin(user);
-    })
-    .then(function(token){
-        fs.writeFileSync(".token", token.token);
-        return token;
+    prom = clusterpost.getUser()
+    .catch(function(err){
+        return userLogin();
     });
+}catch(e){
+    prom = userLogin();
 }
 
-var useremail = "juanprietob@gmail.com";
-
-if(argv["useremail"]){
-    useremail = argv["useremail"];
-}
-
-var executionserver = "localhost";
-
-if(argv["executionserver"]){
-    executionserver = argv["executionserver"];
-}
+var useremail = "";
 
 prom
 .then(function(res){
 
-    var job = {
-        "executable": "ANTS",
-        "parameters": parameters,
-        "inputs": inputs,
-        "outputs": [
-            {
-                "type": "file",
-                "name": "stdout.out"
-            },
-            {
-                "type": "file",
-                "name": "stderr.err"
+    if(argv["useremail"]){
+        useremail = argv["useremail"];
+    }else{
+        useremail = res.email;
+    }
+
+    if(argv["executionserver"]){
+        serverprom = Promise.resolve(argv["executionserver"]);
+    }else{
+        serverprom = clusterpost.getExecutionServers()
+        .then(function(servers){
+            console.log("Selecting first server by default");
+            if(servers.length > 0){
+                return servers[0].name
+            }else{
+                return Promise.reject("No servers configured");
             }
-        ],
-        "type": "job",
-        "userEmail": useremail
-    };
-    
-    job.executionserver = executionserver;
-    
-    job.inputs = inputs;
-
-    job.outputs.push({
-        type: "file",
-        name: outname + "Affine.txt"
-    });
-    job.outputs.push({
-        type: "file",
-        name: outname + "Warp.nii.gz"
-    });
-    job.outputs.push({
-        type: "file",
-        name: outname + "InverseWarp.nii.gz"
-    });
-
-    job.outputdir = outputdir;
-
-    if(jobname){
-        job.name = jobname;
-    }
-    
-    if(jobparameters){
-        job.jobparameters = jobparameters;
-    }
-
-    return clusterpost.createDocument(job)
-    .then(function(res){
-        var jobid = res.id;
-        return clusterpost.executeJob(jobid)
-        .then(function(res){
-            console.log(jobid);
-            return res;
         })
-        .catch(function(res){
-            console.error(res);
-            return res;
+    }
+
+    return serverprom
+    .then(function(executionserver){
+        var job = {
+            "executable": "ANTS",
+            "parameters": parameters,
+            "inputs": inputs,
+            "outputs": [
+                {
+                    "type": "file",
+                    "name": "stdout.out"
+                },
+                {
+                    "type": "file",
+                    "name": "stderr.err"
+                }
+            ],
+            "type": "job",
+            "userEmail": useremail
+        };
+
+        job.executionserver = executionserver;
+    
+        job.inputs = inputs;
+
+        job.outputs.push({
+            type: "file",
+            name: outname + "Affine.txt"
+        });
+        job.outputs.push({
+            type: "file",
+            name: outname + "Warp.nii.gz"
+        });
+        job.outputs.push({
+            type: "file",
+            name: outname + "InverseWarp.nii.gz"
+        });
+
+        job.outputdir = outputdir;
+
+        if(jobname){
+            job.name = jobname;
+        }
+        
+        if(jobparameters){
+            job.jobparameters = jobparameters;
+        }
+
+        return clusterpost.createDocument(job)
+        .then(function(res){
+            var jobid = res.id;
+            return clusterpost.executeJob(jobid)
+            .then(function(res){
+                console.log(jobid);
+                return res;
+            })
+            .catch(function(res){
+                console.error(res);
+                return res;
+            });
         });
     });
+    
+    
 })
 .then(function(){
     process.exit(0);

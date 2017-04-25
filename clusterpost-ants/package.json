@@ -1,6 +1,6 @@
 {
   "name": "clusterpost-ants",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Apply ants registration in a computing grid using clusterpost",
   "main": "index.js",
   "scripts": {

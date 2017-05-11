@@ -249,7 +249,7 @@ clusterpost.setAgentOptions(agentoptions);
 var prom;
 try{
     var token = JSON.parse(fs.readFileSync(".token"));
-    clusterpost.setUserToken(token);
+    clusterpost.setUserToken(token.token);
     prom = clusterpost.getUser()
     .catch(function(err){
         return userLogin();
@@ -258,10 +258,13 @@ try{
     prom = userLogin();
 }
 
-var useremail = "";
-
 prom
 .then(function(res){
+    return JSON.parse(res);
+})
+.then(function(res){
+
+    var useremail = "";
 
     if(argv["useremail"]){
         useremail = argv["useremail"];
